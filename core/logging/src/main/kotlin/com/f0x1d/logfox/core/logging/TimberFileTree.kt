@@ -4,9 +4,11 @@ import android.content.Context
 import com.f0x1d.logfox.core.di.IODispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
@@ -19,19 +21,33 @@ class TimberFileTree @Inject constructor(
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : Timber.DebugTree() {
 
+    private companion object {
+        const val BUFFER_SIZE = 4096
+    }
+
     private val logsFile = context.timberLogFile.apply { delete() }
 
-    private val channel = Channel<String>(capacity = UNLIMITED)
-    private val scope = CoroutineScope(ioDispatcher)
+    // Bounded on purpose: if writing the file ever fails the consumer stops, and an unbounded
+    // channel would then buffer every single log line in memory until the app is killed
+    private val channel = Channel<String>(
+        capacity = BUFFER_SIZE,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
     init {
         scope.launch {
-            logsFile.writeText("")
+            runCatching { logsFile.writeText("") }
 
             for (value in channel) {
-                logsFile.appendText(
-                    text = value + "\n",
-                )
+                // A full disk or a deleted file must not kill the writer loop: the next line
+                // should still be attempted
+                try {
+                    logsFile.appendText(text = value + "\n")
+                } catch (throwable: Throwable) {
+                    if (throwable is CancellationException) throw throwable
+                }
             }
         }
     }

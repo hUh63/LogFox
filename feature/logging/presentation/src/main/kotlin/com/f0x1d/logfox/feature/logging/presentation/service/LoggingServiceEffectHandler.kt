@@ -92,10 +92,13 @@ internal class LoggingServiceEffectHandler @Inject constructor(
                         }
                     }.collect { logLine ->
                         withContext(defaultDispatcher) {
-                            addLogLineUseCase(logLine)
-                            processLogLineCrashesUseCase(logLine)
-                            processLogLineRecordingUseCase(logLine)
-                            broadcastLogEventUseCase(logLine)
+                            // One failing step (full disk, broken recording file, dead
+                            // receiver) used to abort the whole collection flow, which
+                            // stopped logging for good
+                            step("store") { addLogLineUseCase(logLine) }
+                            step("crashes") { processLogLineCrashesUseCase(logLine) }
+                            step("recording") { processLogLineRecordingUseCase(logLine) }
+                            step("broadcast") { broadcastLogEventUseCase(logLine) }
                         }
                     }
 
@@ -121,9 +124,12 @@ internal class LoggingServiceEffectHandler @Inject constructor(
                 logUpdatesJob = effectScope.launch {
                     while (true) {
                         delay(getLogsUpdateIntervalUseCase())
-                        val logs = getLogsSnapshotUseCase()
-                        Timber.d("Sending ${logs.size} logs to store")
-                        updateLogsUseCase(logs)
+
+                        step("snapshot") {
+                            val logs = getLogsSnapshotUseCase()
+                            Timber.d("Sending ${logs.size} logs to store")
+                            updateLogsUseCase(logs)
+                        }
                     }
                 }
             }
@@ -200,5 +206,16 @@ internal class LoggingServiceEffectHandler @Inject constructor(
 
     companion object {
         private const val RETRY_DELAY_MS = 10_000L
+    }
+
+    // Keeps the log pipeline alive when a single step fails: rethrows cancellation only
+    private suspend fun step(name: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (cancellationException: CancellationException) {
+            throw cancellationException
+        } catch (throwable: Throwable) {
+            Timber.w(throwable, "Log pipeline step '%s' failed", name)
+        }
     }
 }
