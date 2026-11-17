@@ -64,6 +64,23 @@ jobs:
           find app/build/outputs/apk -name '*.apk' -exec cp -v {} apk-out/ \;
           ls -l apk-out
 
+      - name: Verify APK
+        run: |
+          set -e
+          APK=$(ls apk-out/*.apk | head -1)
+          ls -l "$APK"
+          AAPT="$ANDROID_HOME/build-tools/36.1.0/aapt2"
+          "$AAPT" dump badging "$APK" | head -5 || true
+          "$AAPT" dump xmltree --file AndroidManifest.xml "$APK" | grep -i "McpServerService" || true
+          found=0
+          for dex in $(unzip -Z1 "$APK" | grep -E '^classes[0-9]*\.dex$'); do
+            if unzip -p "$APK" "$dex" | grep -qa "com/f0x1d/logfox/mcp/impl/McpServerService"; then
+              echo "MCP server class found in $dex"
+              found=1
+            fi
+          done
+          test "$found" = "1"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
