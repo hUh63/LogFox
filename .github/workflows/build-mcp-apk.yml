@@ -44,13 +44,12 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK packages
+      - name: Configure Android SDK
         run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager --install "platforms;android-36" "build-tools;36.1.0" > /dev/null 2>&1 || true
+          sdkmanager --list_installed | head -20 || true
 
       - name: Build debug APK
         run: |
