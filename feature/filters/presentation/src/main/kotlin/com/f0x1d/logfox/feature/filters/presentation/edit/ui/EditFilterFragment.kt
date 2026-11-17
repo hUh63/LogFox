@@ -120,8 +120,8 @@ internal class EditFilterFragment :
         }
         levelButtons.forEach { (button, which) ->
             button.setOnClickListener {
-                button.isChecked = !button.isChecked
-
+                // MaterialButton flips isChecked in performClick() before this listener,
+                // so reading it here gives the state the user just chose
                 send(EditFilterCommand.FilterLevel(which, button.isChecked))
             }
         }

@@ -114,11 +114,9 @@ internal class LogsFragment :
 
         levelButtons.forEach { (button, _) ->
             button.setOnClickListener {
-                // The button is the source of truth here: flip it, then derive the whole
-                // set from the buttons. Deriving it in the fragment avoids any feedback
-                // loop with render() and makes the tap leave a visible trace
-                button.isChecked = !button.isChecked
-
+                // MaterialButton toggles itself in performClick() before this listener runs,
+                // so isChecked already holds the new state. Do NOT flip it manually here:
+                // doing that cancelled the toggle and the filter never changed.
                 val levels = levelButtons.filter { it.first.isChecked }.map { it.second }.toSet()
 
                 send(LogsCommand.SetLevelFilter(levels))
