@@ -1,6 +1,8 @@
 package com.f0x1d.logfox.feature.logging.impl.data
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import androidx.collection.LruCache
 import com.f0x1d.logfox.feature.logging.api.data.LogLineParser
 import com.f0x1d.logfox.feature.logging.api.model.LogLevel
@@ -66,14 +68,23 @@ internal class LogLineParserImpl @Inject constructor(
                 ?.firstOrNull()
                 ?: return@runCatching null
 
-            val sharedUserId = runCatching {
-                packageManager.getApplicationInfo(packageName, 0).sharedUserId
-            }.getOrNull()
-
-            (sharedUserId?.takeIf { it.isNotEmpty() } ?: packageName)
+            (sharedUserId(packageManager, packageName) ?: packageName)
                 .also { resolved -> uidsCache.put(uid, resolved) }
         }.getOrNull()
     }
+
+    /**
+     * sharedUserId is deprecated and gone from the SDK starting with API 36, so it has
+     * to be read reflectively to keep working on devices that still have it
+     */
+    private fun sharedUserId(packageManager: PackageManager, packageName: String): String? =
+        runCatching {
+            val applicationInfo = packageManager.getApplicationInfo(packageName, 0)
+
+            ApplicationInfo::class.java
+                .getField("sharedUserId")
+                .get(applicationInfo) as? String
+        }.getOrNull()?.takeIf { it.isNotEmpty() }
 
     private fun resolveIntegerUid(uid: String): Int? {
         uid.toIntOrNull()?.let { return it }
