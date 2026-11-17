@@ -1,9 +1,9 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  # Upstream workflow: requires KEYSTORE_* secrets (release signing).
+  # Releases with APK are published by build-mcp-apk.yml on version tags.
+  workflow_dispatch:
 
 env:
   KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}

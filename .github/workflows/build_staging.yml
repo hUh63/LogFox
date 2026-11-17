@@ -1,11 +1,9 @@
 name: Staging
 
 on:
+  # Upstream workflow: requires KEYSTORE_* secrets (release signing).
+  # Automatic APKs are built by build-mcp-apk.yml, so this only runs manually.
   workflow_dispatch:
-
-  push:
-    branches:
-      - 'master'
 
 env:
   KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
