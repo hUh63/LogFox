@@ -15,9 +15,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.system.exitProcess
 
 class UserService() : IUserService.Stub() {
@@ -25,8 +28,15 @@ class UserService() : IUserService.Stub() {
     private val serviceScopeJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceScopeJob)
 
-    private var latestId = 0L
-    private val currentProcesses = HashMap<Long, Process>()
+    private companion object {
+        // A shell command that never exits must not pin a binder thread forever
+        const val EXECUTE_TIMEOUT_MS = 60_000L
+    }
+
+    private val latestId = AtomicLong(0L)
+
+    // Binder calls arrive on several threads, a plain HashMap here raced with itself
+    private val currentProcesses = ConcurrentHashMap<Long, Process>()
 
     // Needed for shizuku v13
     @Suppress("UNUSED_PARAMETER")
@@ -49,21 +59,39 @@ class UserService() : IUserService.Stub() {
     }
 
     override fun executeNow(command: String?) = runBlocking(Dispatchers.IO) {
-        val process = Runtime.getRuntime().exec(command)
+        val process = runCatching { Runtime.getRuntime().exec(command) }
+            .getOrElse { throwable ->
+                return@runBlocking TerminalResult(
+                    exitCode = -1,
+                    errorOutput = throwable.message ?: "Failed to start the process",
+                )
+            }
 
-        val output = async {
-            process.inputStream.readBytes().decodeToString()
-        }
-        val error = async {
-            process.errorStream.readBytes().decodeToString()
-        }
-        val exitCode = process.waitFor()
+        try {
+            withTimeoutOrNull(EXECUTE_TIMEOUT_MS) {
+                val output = async {
+                    process.inputStream.readBytes().decodeToString()
+                }
+                val error = async {
+                    process.errorStream.readBytes().decodeToString()
+                }
+                val exitCode = process.waitFor()
 
-        TerminalResult(exitCode, output.await(), error.await())
+                TerminalResult(exitCode, output.await(), error.await())
+            } ?: TerminalResult(
+                exitCode = -1,
+                errorOutput = "Command timed out after ${EXECUTE_TIMEOUT_MS / 1000} s",
+            )
+        } finally {
+            process.tryDestroy()
+        }
     }
 
     override fun execute(command: String?): Long {
-        val processId = latestId++
+        // Keep the map bounded: finished processes were never removed before
+        currentProcesses.entries.removeAll { entry -> !entry.value.isAlive }
+
+        val processId = latestId.incrementAndGet()
 
         val process = Runtime.getRuntime().exec(command)
         currentProcesses[processId] = process

@@ -25,7 +25,6 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
-import kotlinx.coroutines.suspendCancellableCoroutine
 
 @Singleton
 internal class ShizukuTerminal @Inject constructor(
@@ -118,14 +117,20 @@ internal class ShizukuTerminal @Inject constructor(
             suspendCancellableCoroutine<Boolean> { continuation ->
                 val connection = object : ServiceConnection {
                     override fun onServiceConnected(componentName: ComponentName?, binder: IBinder?) {
-                        if (binder == null || !binder.pingBinder()) {
-                            if (continuation.isActive) continuation.resume(false)
-                            return
+                        // pingBinder() throws when Shizuku dies between bind and connect, and
+                        // an exception thrown from a binder callback is fatal to the process
+                        val bound = runCatching {
+                            if (binder == null || !binder.pingBinder()) return@runCatching false
+
+                            userService = IUserService.Stub.asInterface(binder)
+
+                            true
+                        }.getOrElse { throwable ->
+                            Timber.w(throwable, "Failed to bind the Shizuku user service")
+                            false
                         }
 
-                        userService = IUserService.Stub.asInterface(binder)
-
-                        if (continuation.isActive) continuation.resume(true)
+                        if (continuation.isActive) continuation.resume(bound)
                     }
 
                     override fun onServiceDisconnected(componentName: ComponentName?) {
