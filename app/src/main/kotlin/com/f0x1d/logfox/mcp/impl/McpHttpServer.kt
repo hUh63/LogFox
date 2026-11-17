@@ -2,11 +2,9 @@ package com.f0x1d.logfox.mcp.impl
 
 import com.f0x1d.logfox.feature.filters.api.domain.GetAllEnabledFiltersFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.ClearLogsUseCase
-import com.f0x1d.logfox.feature.logging.api.domain.GetLogsSnapshotUseCase
+import com.f0x1d.logfox.feature.logging.api.domain.GetLogsFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetQueryFlowUseCase
-import com.f0x1d.logfox.feature.logging.api.domain.StartLoggingUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.UpdateQueryUseCase
-import com.f0x1d.logfox.feature.terminals.api.domain.GetSelectedTerminalUseCase
 import com.f0x1d.logfox.mcp.api.ContentBlock
 import com.f0x1d.logfox.mcp.api.McpTool
 import com.f0x1d.logfox.mcp.api.ToolResult
@@ -54,12 +52,11 @@ internal class McpHttpServer(
     private val port: Int,
     private val gson: Gson,
     private val tools: Map<String, McpTool>,
-    private val startLoggingUseCase: StartLoggingUseCase,
+    private val getLogsFlowUseCase: GetLogsFlowUseCase,
     private val clearLogsUseCase: ClearLogsUseCase,
     private val getQueryFlowUseCase: GetQueryFlowUseCase,
     private val updateQueryUseCase: UpdateQueryUseCase,
     private val getAllEnabledFiltersFlowUseCase: GetAllEnabledFiltersFlowUseCase,
-    private val getSelectedTerminalUseCase: GetSelectedTerminalUseCase,
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -407,24 +404,29 @@ internal class McpHttpServer(
     // region REST endpoints
 
     private suspend fun handleLogsSse(output: OutputStream) {
-        val terminal = runCatching { getSelectedTerminalUseCase() }.getOrNull()
-
         writeSseHeaders(output)
-
-        if (terminal == null) {
-            writeEvent(output, EVENT_ERROR, "No terminal selected")
-
-            return
-        }
 
         Timber.d("[MCP] GET /logs")
 
         val lines = Channel<McpLogLine>(Channel.UNLIMITED)
 
         val collecting = scope.launch {
+            var knownIds: Set<Long>? = null
+
             runCatching {
-                startLoggingUseCase(terminal).collect { line ->
-                    lines.send(McpLogLine.from(line))
+                getLogsFlowUseCase().collect { batch ->
+                    val known = knownIds
+
+                    val fresh = if (known == null) {
+                        knownIds = batch.map { it.id }.toSet()
+
+                        emptyList()
+                    } else {
+                        batch.filter { it.id !in known }
+                            .also { newLines -> knownIds = known + newLines.map { it.id } }
+                    }
+
+                    fresh.forEach { line -> lines.send(McpLogLine.from(line)) }
                 }
             }.onFailure { Timber.e(it, "[MCP] /logs error") }
         }

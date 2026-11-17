@@ -1,9 +1,8 @@
 package com.f0x1d.logfox.mcp.impl.tools
 
+import com.f0x1d.logfox.feature.logging.api.domain.GetLogsFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetLogsSnapshotUseCase
-import com.f0x1d.logfox.feature.logging.api.domain.StartLoggingUseCase
 import com.f0x1d.logfox.feature.logging.api.model.LogLine
-import com.f0x1d.logfox.feature.terminals.api.domain.GetSelectedTerminalUseCase
 import com.f0x1d.logfox.mcp.api.McpTool
 import com.f0x1d.logfox.mcp.api.ToolResult
 import com.f0x1d.logfox.mcp.api.model.McpLogLine
@@ -11,6 +10,9 @@ import com.f0x1d.logfox.mcp.impl.intOrNull
 import com.f0x1d.logfox.mcp.impl.stringOrNull
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapIterable
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withTimeoutOrNull
@@ -20,9 +22,8 @@ import timber.log.Timber
  * `read_logs` tool: reads Android logcat logs.
  */
 class ReadLogsTool(
-    private val startLoggingUseCase: StartLoggingUseCase,
     private val getLogsSnapshotUseCase: GetLogsSnapshotUseCase,
-    private val getSelectedTerminalUseCase: GetSelectedTerminalUseCase,
+    private val getLogsFlowUseCase: GetLogsFlowUseCase,
 ) : McpTool {
 
     override val name: String = "read_logs"
@@ -91,14 +92,35 @@ class ReadLogsTool(
         ToolResult.Error("Failed to read logs: ${e.message}")
     }
 
-    private suspend fun readLive(count: Int): List<LogLine> {
-        val terminal = getSelectedTerminalUseCase()
+    /**
+     * Collects the next [count] log lines from the logging buffer that is already
+     * shared with the app. Starting another terminal/logcat process here would
+     * duplicate the logging session, so only new lines are observed.
+     */
+    private suspend fun readLive(count: Int): List<LogLine> = withTimeoutOrNull(LIVE_TIMEOUT_MS) {
+        var knownIds: Set<Long>? = null
 
-        return withTimeoutOrNull(LIVE_TIMEOUT_MS) {
-            runCatching { startLoggingUseCase(terminal).take(count).toList() }
-                .getOrElse { emptyList() }
-        } ?: emptyList()
-    }
+        getLogsFlowUseCase()
+            .map { lines ->
+                val known = knownIds
+
+                if (known == null) {
+                    knownIds = lines.map { it.id }.toSet()
+
+                    emptyList()
+                } else {
+                    val fresh = lines.filter { it.id !in known }
+
+                    knownIds = known + fresh.map { it.id }
+
+                    fresh
+                }
+            }
+            .filter { it.isNotEmpty() }
+            .flatMapIterable { it }
+            .take(count)
+            .toList()
+    } ?: emptyList()
 
     companion object {
         private const val MODE_SNAPSHOT = "snapshot"

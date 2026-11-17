@@ -3,11 +3,10 @@ package com.f0x1d.logfox.mcp.impl
 import android.content.Context
 import com.f0x1d.logfox.feature.filters.api.domain.GetAllEnabledFiltersFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.ClearLogsUseCase
+import com.f0x1d.logfox.feature.logging.api.domain.GetLogsFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetLogsSnapshotUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetQueryFlowUseCase
-import com.f0x1d.logfox.feature.logging.api.domain.StartLoggingUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.UpdateQueryUseCase
-import com.f0x1d.logfox.feature.terminals.api.domain.GetSelectedTerminalUseCase
 import com.f0x1d.logfox.mcp.api.McpServerManager
 import com.f0x1d.logfox.mcp.api.McpTool
 import com.f0x1d.logfox.mcp.impl.tools.ClearLogsTool
@@ -29,12 +28,11 @@ import javax.inject.Singleton
 
 @Singleton
 class McpServerManagerImpl @Inject constructor(
-    private val startLoggingUseCase: StartLoggingUseCase,
+    private val getLogsFlowUseCase: GetLogsFlowUseCase,
     private val clearLogsUseCase: ClearLogsUseCase,
     private val getQueryFlowUseCase: GetQueryFlowUseCase,
     private val updateQueryUseCase: UpdateQueryUseCase,
     private val getAllEnabledFiltersFlowUseCase: GetAllEnabledFiltersFlowUseCase,
-    private val getSelectedTerminalUseCase: GetSelectedTerminalUseCase,
     private val getLogsSnapshotUseCase: GetLogsSnapshotUseCase,
     private val gson: Gson,
     @ApplicationContext private val context: Context,
@@ -79,12 +77,11 @@ class McpServerManagerImpl @Inject constructor(
                 port = port,
                 gson = gson,
                 tools = tools,
-                startLoggingUseCase = startLoggingUseCase,
+                getLogsFlowUseCase = getLogsFlowUseCase,
                 clearLogsUseCase = clearLogsUseCase,
                 getQueryFlowUseCase = getQueryFlowUseCase,
                 updateQueryUseCase = updateQueryUseCase,
                 getAllEnabledFiltersFlowUseCase = getAllEnabledFiltersFlowUseCase,
-                getSelectedTerminalUseCase = getSelectedTerminalUseCase,
             )
 
             instance.start()
@@ -153,9 +150,8 @@ class McpServerManagerImpl @Inject constructor(
 
         listOf(
             ReadLogsTool(
-                startLoggingUseCase = startLoggingUseCase,
                 getLogsSnapshotUseCase = getLogsSnapshotUseCase,
-                getSelectedTerminalUseCase = getSelectedTerminalUseCase,
+                getLogsFlowUseCase = getLogsFlowUseCase,
             ),
             SetQueryTool(updateQueryUseCase = updateQueryUseCase),
             GetQueryTool(getQueryFlowUseCase = getQueryFlowUseCase),

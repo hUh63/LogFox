@@ -54,6 +54,16 @@ class McpServerService : LifecycleService() {
 
         startForeground(NOTIFICATION_ID, notification())
 
+        // The system may restart the service (START_STICKY) even after the user
+        // disabled the server, so the preference is verified here as well.
+        if (!preferences().getBoolean(PREF_MCP_SERVER_ENABLED, true)) {
+            Timber.i("[MCP] Server is disabled in settings, stopping service")
+
+            stopSelf()
+
+            return
+        }
+
         lifecycleScope.launch {
             Timber.d("[MCP] Launching coroutine to start server...")
 
