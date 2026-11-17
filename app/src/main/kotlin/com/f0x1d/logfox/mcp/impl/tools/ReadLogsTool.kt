@@ -11,7 +11,7 @@ import com.f0x1d.logfox.mcp.impl.stringOrNull
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flatMapIterable
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -117,7 +117,7 @@ class ReadLogsTool(
                 }
             }
             .filter { it.isNotEmpty() }
-            .flatMapIterable { it }
+            .transform { lines -> lines.forEach { emit(it) } }
             .take(count)
             .toList()
     } ?: emptyList()
