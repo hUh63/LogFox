@@ -49,4 +49,10 @@ internal sealed interface CrashDetailsCommand {
     data object ShareCrashLog : CrashDetailsCommand
 
     data class SearchInLog(val query: String) : CrashDetailsCommand
+
+    data object ShowReplaceDialog : CrashDetailsCommand
+
+    data class ApplyReplace(val find: String, val replaceWith: String) : CrashDetailsCommand
+
+    data object ClearReplace : CrashDetailsCommand
 }

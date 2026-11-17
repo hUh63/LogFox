@@ -20,6 +20,7 @@ internal class CrashDetailsViewModel @Inject constructor(
     initialState = CrashDetailsState(
         crash = null,
         crashLog = null,
+        originalCrashLog = null,
         blacklisted = null,
         wrapCrashLogLines = getWrapCrashLogLinesUseCase(),
         textSize = getLogsTextSizeUseCase(),

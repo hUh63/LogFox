@@ -1,5 +1,7 @@
 package com.f0x1d.logfox.feature.logging.presentation.list
 
+import com.f0x1d.logfox.feature.logging.api.model.LogLevel
+
 import android.net.Uri
 import com.f0x1d.logfox.feature.filters.api.model.UserFilter
 import com.f0x1d.logfox.feature.logging.api.model.LogLine
@@ -71,4 +73,6 @@ internal sealed interface LogsCommand {
     data object KillService : LogsCommand
 
     data class LogcatSilentFound(val property: String?) : LogsCommand
+
+    data class ToggleLevelFilter(val level: LogLevel) : LogsCommand
 }

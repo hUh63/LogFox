@@ -32,6 +32,7 @@ import com.f0x1d.logfox.core.ui.view.setClickListenerOn
 import com.f0x1d.logfox.core.ui.view.setupBackButtonForNavController
 import com.f0x1d.logfox.feature.crashes.api.model.AppCrash
 import com.f0x1d.logfox.feature.crashes.presentation.R
+import com.f0x1d.logfox.feature.crashes.presentation.databinding.DialogReplaceBinding
 import com.f0x1d.logfox.feature.crashes.presentation.databinding.FragmentCrashDetailsBinding
 import com.f0x1d.logfox.feature.crashes.presentation.details.CrashDetailsCommand
 import com.f0x1d.logfox.feature.crashes.presentation.details.CrashDetailsSideEffect
@@ -39,6 +40,7 @@ import com.f0x1d.logfox.feature.crashes.presentation.details.CrashDetailsState
 import com.f0x1d.logfox.feature.crashes.presentation.details.CrashDetailsViewModel
 import com.f0x1d.logfox.feature.crashes.presentation.details.CrashDetailsViewState
 import com.f0x1d.logfox.feature.strings.Strings
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.insetter.applyInsetter
@@ -93,6 +95,12 @@ internal class CrashDetailsFragment :
         toolbar.menu.apply {
             setClickListenerOn(R.id.wrap_lines_item) {
                 send(CrashDetailsCommand.WrapLinesClicked)
+            }
+            setClickListenerOn(R.id.replace_item) {
+                send(CrashDetailsCommand.ShowReplaceDialog)
+            }
+            setClickListenerOn(R.id.clear_replace_item) {
+                send(CrashDetailsCommand.ClearReplace)
             }
             setClickListenerOn(R.id.text_smaller_item) {
                 send(CrashDetailsCommand.DecreaseTextSize)
@@ -246,6 +254,10 @@ internal class CrashDetailsFragment :
                 }
             }
 
+            is CrashDetailsSideEffect.ShowReplace -> {
+                showReplaceDialog()
+            }
+
             is CrashDetailsSideEffect.CopyText -> {
                 requireContext().copyText(sideEffect.text)
                 snackbar(Strings.text_copied)
@@ -293,6 +305,28 @@ internal class CrashDetailsFragment :
 
     private val FragmentCrashDetailsBinding.searchItem get() =
         toolbar.menu.findItem(R.id.search_item)
+
+    private fun showReplaceDialog() {
+        val dialogBinding = DialogReplaceBinding.inflate(layoutInflater)
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(Strings.replace)
+            .setView(dialogBinding.root)
+            .setPositiveButton(Strings.replace) { _, _ ->
+                val find = dialogBinding.findText.text?.toString().orEmpty()
+
+                if (find.isNotEmpty()) {
+                    send(
+                        CrashDetailsCommand.ApplyReplace(
+                            find = find,
+                            replaceWith = dialogBinding.replaceText.text?.toString().orEmpty(),
+                        ),
+                    )
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
 
     private fun snackbar(messageRes: Int) {
         Snackbar.make(binding.root, messageRes, Snackbar.LENGTH_SHORT).show()

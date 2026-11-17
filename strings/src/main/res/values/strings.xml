@@ -10,6 +10,10 @@
     <string name="text_larger">Larger text</string>
     <string name="regex_tag">Match tag as regular expression</string>
     <string name="regex_content">Match content as regular expression</string>
+    <string name="replace">Replace</string>
+    <string name="replace_find">Text to replace</string>
+    <string name="replace_with">Replace with (empty to remove)</string>
+    <string name="clear_replacements">Clear replacements</string>
     <string name="logcat_silent_warning">No logs are coming: %1$s is set to silent on this device. Set it to I (setprop %1$s I) and restart logging</string>
     <string name="broadcast_log_events">Broadcast log events</string>
     <string name="broadcast_log_events_desc">Send every log line as a com.f0x1d.logfox.LOG_EVENT broadcast, so Tasker, MacroDroid or Automate can react to it (max 50 events/second)</string>

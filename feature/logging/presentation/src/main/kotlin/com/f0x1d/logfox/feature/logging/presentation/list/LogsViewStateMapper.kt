@@ -11,11 +11,20 @@ internal class LogsViewStateMapper @Inject constructor(
 ) : ViewStateMapper<LogsState, LogsViewState> {
 
     override fun map(state: LogsState): LogsViewState {
-        val filteredLogs = state.logs.filterAndSearch(
-            filters = state.filters,
-            query = state.query,
-            caseSensitive = state.caseSensitive,
-        )
+        val filteredLogs = state.logs
+            .filterAndSearch(
+                filters = state.filters,
+                query = state.query,
+                caseSensitive = state.caseSensitive,
+            )
+            .let { lines ->
+                // Quick level filtering from the button row above the list (F0x1d/LogFox#259)
+                if (state.levelFilters.isEmpty()) {
+                    lines
+                } else {
+                    lines.filter { it.level in state.levelFilters }
+                }
+            }
 
         return LogsViewState(
             logs = filteredLogs.map { line ->
@@ -33,6 +42,7 @@ internal class LogsViewStateMapper @Inject constructor(
             logsChanged = state.logsChanged,
             paused = state.paused,
             query = state.query,
+            levelFilters = state.levelFilters,
             filters = state.filters,
             selecting = state.selectedIds.isNotEmpty(),
             selectedCount = state.selectedIds.size,

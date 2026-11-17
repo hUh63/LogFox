@@ -105,6 +105,7 @@ internal class CrashDetailsEffectHandler @Inject constructor(
             is CrashDetailsSideEffect.CopyText -> Unit
             is CrashDetailsSideEffect.ShareCrashLog -> Unit
             is CrashDetailsSideEffect.Close -> Unit
+            is CrashDetailsSideEffect.ShowReplace -> Unit
             is CrashDetailsSideEffect.LaunchFileExportPicker -> Unit
             is CrashDetailsSideEffect.LaunchZipExportPicker -> Unit
         }

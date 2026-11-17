@@ -48,6 +48,18 @@ internal class LogsFragment :
 
     override val viewModel by viewModels<LogsViewModel>()
 
+    private val levelButtons by lazy {
+        listOf(
+            binding.levelV to LogLevel.VERBOSE,
+            binding.levelD to LogLevel.DEBUG,
+            binding.levelI to LogLevel.INFO,
+            binding.levelW to LogLevel.WARNING,
+            binding.levelE to LogLevel.ERROR,
+            binding.levelF to LogLevel.FATAL,
+            binding.levelS to LogLevel.SILENT,
+        )
+    }
+
     private val adapter by lazy {
         LogsAdapter(
             onClick = { item ->
@@ -96,6 +108,12 @@ internal class LogsFragment :
                 type(navigationBars = true) {
                     margin(vertical = horizontalOrientation)
                 }
+            }
+        }
+
+        levelButtons.forEach { (button, level) ->
+            button.setOnClickListener {
+                send(LogsCommand.ToggleLevelFilter(level))
             }
         }
 
@@ -184,6 +202,10 @@ internal class LogsFragment :
             selectedCount = state.selectedCount,
         )
         binding.processPaused(paused = state.paused)
+
+        levelButtons.forEach { (button, level) ->
+            button.isChecked = level in state.levelFilters
+        }
 
         if (state.logsChanged) {
             binding.updateLogsList(

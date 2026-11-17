@@ -16,6 +16,16 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/replace_item"
+        android:title="@string/replace"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/clear_replace_item"
+        android:title="@string/clear_replacements"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/text_smaller_item"
         android:icon="@drawable/ic_text_smaller"
         android:title="@string/text_smaller"

@@ -16,6 +16,27 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
         is CrashDetailsCommand.CrashLoaded -> state.copy(
             crash = command.crash,
             crashLog = command.crashLog,
+            originalCrashLog = command.crashLog,
+            searchMatchRanges = emptyList(),
+        ).noSideEffects()
+
+        is CrashDetailsCommand.ShowReplaceDialog -> state.withSideEffects(
+            CrashDetailsSideEffect.ShowReplace,
+        )
+
+        is CrashDetailsCommand.ApplyReplace -> state.copy(
+            // Applied to the original log, so replacements do not stack on each other.
+            // Lets the user strip noisy R8 tokens out of a stacktrace (F0x1d/LogFox#264)
+            crashLog = state.originalCrashLog?.replace(command.find, command.replaceWith)
+                ?: state.crashLog,
+            searchQuery = "",
+            searchMatchRanges = emptyList(),
+        ).noSideEffects()
+
+        is CrashDetailsCommand.ClearReplace -> state.copy(
+            crashLog = state.originalCrashLog,
+            searchQuery = "",
+            searchMatchRanges = emptyList(),
         ).noSideEffects()
 
         is CrashDetailsCommand.BlacklistStatusLoaded -> state.copy(

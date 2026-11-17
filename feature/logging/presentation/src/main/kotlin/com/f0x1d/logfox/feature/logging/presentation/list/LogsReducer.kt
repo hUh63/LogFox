@@ -217,6 +217,14 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
             state.withSideEffects(LogsSideEffect.NavigateToExtendedCopy)
         }
 
+        is LogsCommand.ToggleLevelFilter -> {
+            val levels = state.levelFilters.toMutableSet().apply {
+                if (!add(command.level)) remove(command.level)
+            }
+
+            state.copy(levelFilters = levels, logsChanged = true).noSideEffects()
+        }
+
         is LogsCommand.LogcatSilentFound -> {
             val property = command.property
 

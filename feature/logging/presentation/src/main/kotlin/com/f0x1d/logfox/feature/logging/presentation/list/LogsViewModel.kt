@@ -29,6 +29,7 @@ internal class LogsViewModel @Inject constructor(
         logs = emptyList(),
         paused = false,
         query = getQueryUseCase(),
+        levelFilters = emptySet(),
         caseSensitive = getCaseSensitiveUseCase(),
         filters = emptyList(),
         showLogValues = getShowLogValuesUseCase(),

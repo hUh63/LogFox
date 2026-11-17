@@ -7,6 +7,8 @@ internal sealed interface CrashDetailsSideEffect {
     // Business logic side effects
     data object LoadCrash : CrashDetailsSideEffect
 
+    data object ShowReplace : CrashDetailsSideEffect
+
     data object ObservePreferences : CrashDetailsSideEffect
 
     data class SetWrapCrashLogLines(val wrap: Boolean) : CrashDetailsSideEffect

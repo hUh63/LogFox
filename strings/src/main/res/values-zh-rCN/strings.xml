@@ -10,6 +10,10 @@
     <string name="text_larger">放大字号</string>
     <string name="regex_tag">Tag 按正则匹配</string>
     <string name="regex_content">内容按正则匹配</string>
+    <string name="replace">替换</string>
+    <string name="replace_find">要替换的文本</string>
+    <string name="replace_with">替换为（留空即删除）</string>
+    <string name="clear_replacements">清除替换</string>
     <string name="logcat_silent_warning">收不到日志：本机的 %1$s 被设为静默。把它改成 I（setprop %1$s I）后重启日志</string>
     <string name="broadcast_log_events">广播日志事件</string>
     <string name="broadcast_log_events_desc">把每条日志以 com.f0x1d.logfox.LOG_EVENT 广播发出，Tasker、MacroDroid、Automate 可据此触发（每秒最多 50 条）</string>
