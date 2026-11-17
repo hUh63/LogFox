@@ -61,11 +61,17 @@ internal class RecordingDetailsEffectHandler @Inject constructor(
             }
 
             is RecordingDetailsSideEffect.ExportFile -> {
-                exportRecordingFileUseCase(recordingId, effect.uri)
+                val result = exportRecordingFileUseCase(recordingId, effect.uri)
+                if (result.isFailure) {
+                    onCommand(RecordingDetailsCommand.ExportFailed)
+                }
             }
 
             is RecordingDetailsSideEffect.ExportZipFile -> {
-                exportRecordingZipUseCase(recordingId, effect.uri)
+                val result = exportRecordingZipUseCase(recordingId, effect.uri)
+                if (result.isFailure) {
+                    onCommand(RecordingDetailsCommand.ExportFailed)
+                }
             }
 
             is RecordingDetailsSideEffect.UpdateTitle -> {
@@ -78,6 +84,7 @@ internal class RecordingDetailsEffectHandler @Inject constructor(
             is RecordingDetailsSideEffect.LaunchFileExportPicker -> Unit
             is RecordingDetailsSideEffect.LaunchZipExportPicker -> Unit
             is RecordingDetailsSideEffect.ShareFile -> Unit
+            is RecordingDetailsSideEffect.ExportFailed -> Unit
         }
     }
 }

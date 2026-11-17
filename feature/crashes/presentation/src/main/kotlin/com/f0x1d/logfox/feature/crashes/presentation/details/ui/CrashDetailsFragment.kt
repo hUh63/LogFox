@@ -56,6 +56,8 @@ internal class CrashDetailsFragment :
 
     override val viewModel by viewModels<CrashDetailsViewModel>()
 
+    private var highlightsApplied = false
+
     private val zipCrashLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip"),
     ) {
@@ -156,7 +158,14 @@ internal class CrashDetailsFragment :
 
         binding.toolbar.menu.findItem(R.id.wrap_lines_item).isChecked = state.wrapCrashLogLines
 
-        state.crash?.let { binding.setupFor(it, state.crashLog, state.wrapCrashLogLines) }
+        // Switch visibility here and not inside setupFor(): the preference is applied
+        // by a separate command, and setupFor() is skipped while the crash is not
+        // loaded yet - that made the switch appear checked while wrapping was off
+        // (F0x1d/LogFox#263)
+        binding.logText.isVisible = state.wrapCrashLogLines
+        binding.logTextScrollableContainer.isVisible = state.wrapCrashLogLines.not()
+
+        state.crash?.let { binding.setupFor(it, state.crashLog) }
 
         binding.toolbar.menu.findItem(R.id.blacklist_item).apply {
             if (state.blacklisted == null) {
@@ -171,7 +180,7 @@ internal class CrashDetailsFragment :
         }
 
         state.crashLog?.let { log ->
-            if (state.searchMatchRanges.isNotEmpty() || state.searchQuery.isNotEmpty()) {
+            if (state.searchMatchRanges.isNotEmpty()) {
                 val span = log.toSpannable()
                 val highlightColor = requireContext().getColor(Colors.md_theme_primaryContainer)
                 state.searchMatchRanges.forEach { range ->
@@ -184,6 +193,13 @@ internal class CrashDetailsFragment :
                 }
                 binding.logText.setText(span, TextView.BufferType.SPANNABLE)
                 binding.logTextScrollable.setText(span, TextView.BufferType.SPANNABLE)
+                highlightsApplied = true
+            } else if (highlightsApplied) {
+                // Search was closed/cleared - drop the highlight spans once, otherwise
+                // they stay on the already rendered text forever
+                binding.logText.setText(log, TextView.BufferType.SPANNABLE)
+                binding.logTextScrollable.setText(log, TextView.BufferType.SPANNABLE)
+                highlightsApplied = false
             }
         }
     }
@@ -248,17 +264,20 @@ internal class CrashDetailsFragment :
     private fun FragmentCrashDetailsBinding.setupFor(
         appCrash: AppCrash,
         crashLog: String?,
-        wrapCrashLogLines: Boolean,
     ) {
         appLogo.loadIcon(appCrash.packageName)
         appName.text = appCrash.appName ?: getString(Strings.unknown)
         appPackage.text = appCrash.packageName
 
-        logText.isVisible = wrapCrashLogLines
-        logTextScrollableContainer.isVisible = wrapCrashLogLines.not()
+        // Do not re-set the text on every render (search input, preference changes):
+        // it drops the current scroll position and the search highlight spans
+        val currentText = logText.text?.toString()
 
-        logText.text = crashLog
-        logTextScrollable.text = crashLog
+        if (currentText != crashLog) {
+            logText.text = crashLog
+            logTextScrollable.text = crashLog
+            highlightsApplied = false
+        }
     }
 
     private val FragmentCrashDetailsBinding.searchItem get() =

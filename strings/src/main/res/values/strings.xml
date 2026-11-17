@@ -5,6 +5,7 @@
     <string name="settings">Settings</string>
     <string name="no_root">No root detected</string>
     <string name="text_copied">Text copied</string>
+    <string name="cannot_open_file">Cannot open file</string>
     <string name="search">Search</string>
     <string name="clear">Clear</string>
     <string name="query">Query</string>

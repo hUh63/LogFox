@@ -15,4 +15,5 @@ internal sealed interface RecordingDetailsCommand {
     data class FileExportPickerReady(val filename: String) : RecordingDetailsCommand
     data class ZipExportPickerReady(val filename: String) : RecordingDetailsCommand
     data class ShareFileReady(val file: java.io.File) : RecordingDetailsCommand
+    data object ExportFailed : RecordingDetailsCommand
 }

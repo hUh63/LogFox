@@ -17,13 +17,14 @@ import com.f0x1d.logfox.feature.terminals.presentation.IUserService
 import com.f0x1d.logfox.feature.terminals.presentation.service.UserService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 @Singleton
 internal class ShizukuTerminal @Inject constructor(
@@ -33,6 +34,13 @@ internal class ShizukuTerminal @Inject constructor(
 
     companion object {
         private const val SHIZUKU_PERMISSION_REQUEST_ID = 8
+
+        // Shizuku callbacks are not guaranteed to arrive (dialog dismissed, Shizuku
+        // killed, device profile where the user service can't be started). Waiting
+        // forever left the setup screen doing literally nothing on click, see
+        // F0x1d/LogFox#249 and F0x1d/LogFox#256
+        private const val PERMISSION_TIMEOUT_MS = 30_000L
+        private const val BIND_TIMEOUT_MS = 15_000L
     }
 
     override val type = TerminalType.Shizuku
@@ -53,67 +61,85 @@ internal class ShizukuTerminal @Inject constructor(
             .tag(context.getString(Strings.app_name))
     }
 
-    override suspend fun isSupported() = suspendCoroutine {
-        when {
-            !Shizuku.pingBinder() -> it.resume(false)
+    override suspend fun isSupported(): Boolean {
+        val hasPermission = runCatching { ensurePermission() }.getOrDefault(false)
 
-            Shizuku.isPreV11() -> it.resume(false)
+        if (hasPermission.not()) return false
 
-            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED -> it.resumeWithServiceBinding()
+        return runCatching { ensureUserServiceBound() }.getOrDefault(false)
+    }
 
-            Shizuku.shouldShowRequestPermissionRationale() -> it.resume(false)
+    private suspend fun ensurePermission(): Boolean = when {
+        runCatching { Shizuku.pingBinder() }.getOrDefault(false).not() -> false
 
-            else -> {
+        Shizuku.isPreV11() -> false
+
+        Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED -> true
+
+        Shizuku.shouldShowRequestPermissionRationale() -> false
+
+        else -> withTimeoutOrNull(PERMISSION_TIMEOUT_MS) {
+            suspendCancellableCoroutine<Boolean> { continuation ->
                 val listener = object : Shizuku.OnRequestPermissionResultListener {
                     override fun onRequestPermissionResult(requestCode: Int, grantResult: Int) {
                         if (requestCode != SHIZUKU_PERMISSION_REQUEST_ID) return
 
-                        when (grantResult == PackageManager.PERMISSION_GRANTED) {
-                            true -> it.resumeWithServiceBinding()
-                            else -> it.resume(false)
-                        }
+                        runCatching { Shizuku.removeRequestPermissionResultListener(this) }
 
-                        Shizuku.removeRequestPermissionResultListener(this)
+                        if (continuation.isActive) {
+                            continuation.resume(grantResult == PackageManager.PERMISSION_GRANTED)
+                        }
                     }
+                }
+
+                continuation.invokeOnCancellation {
+                    runCatching { Shizuku.removeRequestPermissionResultListener(listener) }
                 }
 
                 Shizuku.addRequestPermissionResultListener(listener)
-                Shizuku.requestPermission(SHIZUKU_PERMISSION_REQUEST_ID)
+
+                runCatching { Shizuku.requestPermission(SHIZUKU_PERMISSION_REQUEST_ID) }
+                    .onFailure {
+                        runCatching { Shizuku.removeRequestPermissionResultListener(listener) }
+
+                        if (continuation.isActive) continuation.resume(false)
+                    }
             }
-        }
+        } ?: false
     }
 
-    private fun Continuation<Boolean>.resumeWithServiceBinding() {
-        if (userService != null) {
-            resume(true)
-            return
-        }
+    private suspend fun ensureUserServiceBound(): Boolean {
+        if (userService != null) return true
 
-        var resumed = false
-        object : ServiceConnection {
-            override fun onServiceConnected(componentName: ComponentName?, binder: IBinder?) {
-                if (binder == null || !binder.pingBinder()) {
-                    if (resumed.not()) {
-                        resume(false)
-                        resumed = true
+        return withTimeoutOrNull(BIND_TIMEOUT_MS) {
+            suspendCancellableCoroutine<Boolean> { continuation ->
+                val connection = object : ServiceConnection {
+                    override fun onServiceConnected(componentName: ComponentName?, binder: IBinder?) {
+                        if (binder == null || !binder.pingBinder()) {
+                            if (continuation.isActive) continuation.resume(false)
+                            return
+                        }
+
+                        userService = IUserService.Stub.asInterface(binder)
+
+                        if (continuation.isActive) continuation.resume(true)
                     }
-                    return
+
+                    override fun onServiceDisconnected(componentName: ComponentName?) {
+                        userService = null
+                    }
                 }
 
-                userService = IUserService.Stub.asInterface(binder)
-
-                if (resumed.not()) {
-                    resume(true)
-                    resumed = true
+                continuation.invokeOnCancellation {
+                    runCatching { Shizuku.unbindUserService(userServiceArgs, connection, true) }
                 }
-            }
 
-            override fun onServiceDisconnected(componentName: ComponentName?) {
-                userService = null
+                runCatching { Shizuku.bindUserService(userServiceArgs, connection) }
+                    .onFailure {
+                        if (continuation.isActive) continuation.resume(false)
+                    }
             }
-        }.also {
-            Shizuku.bindUserService(userServiceArgs, it)
-        }
+        } ?: false
     }
 
     override suspend fun executeNow(vararg command: String) = withContext(ioDispatcher) {

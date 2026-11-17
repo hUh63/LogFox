@@ -11,6 +11,7 @@ internal sealed interface RecordingDetailsSideEffect {
     data object PrepareFileExport : RecordingDetailsSideEffect
     data object PrepareZipExport : RecordingDetailsSideEffect
     data object PrepareShare : RecordingDetailsSideEffect
+    data object ExportFailed : RecordingDetailsSideEffect
 
     // UI (handled by Fragment)
     data class LaunchFileExportPicker(val filename: String) : RecordingDetailsSideEffect

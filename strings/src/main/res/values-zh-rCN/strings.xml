@@ -5,6 +5,7 @@
     <string name="settings">设置</string>
     <string name="no_root">未检测到 Root</string>
     <string name="text_copied">已复制</string>
+    <string name="cannot_open_file">无法打开文件</string>
     <string name="search">搜索</string>
     <string name="clear">清除</string>
     <string name="clear_warning">确定要清除吗？清除后将无法恢复。</string>

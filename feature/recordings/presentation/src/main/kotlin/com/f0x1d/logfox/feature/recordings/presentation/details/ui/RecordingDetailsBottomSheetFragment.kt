@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.viewModels
 import com.f0x1d.logfox.core.context.shareFileIntent
+import com.f0x1d.logfox.core.context.toast
 import com.f0x1d.logfox.core.tea.BaseStoreBottomSheetFragment
 import com.f0x1d.logfox.core.ui.view.applyExtendedTextWatcher
 import com.f0x1d.logfox.feature.recordings.presentation.databinding.SheetRecordingDetailsBinding
@@ -15,6 +16,7 @@ import com.f0x1d.logfox.feature.recordings.presentation.details.RecordingDetails
 import com.f0x1d.logfox.feature.recordings.presentation.details.RecordingDetailsState
 import com.f0x1d.logfox.feature.recordings.presentation.details.RecordingDetailsViewModel
 import com.f0x1d.logfox.feature.recordings.presentation.details.RecordingDetailsViewState
+import com.f0x1d.logfox.feature.strings.Strings
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -88,6 +90,10 @@ internal class RecordingDetailsBottomSheetFragment :
 
             is RecordingDetailsSideEffect.ShareFile -> {
                 requireContext().shareFileIntent(sideEffect.file)
+            }
+
+            is RecordingDetailsSideEffect.ExportFailed -> {
+                requireContext().toast(Strings.error_saving_logs)
             }
 
             // Business logic side effects are handled by EffectHandler

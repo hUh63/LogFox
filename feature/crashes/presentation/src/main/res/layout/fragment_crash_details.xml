@@ -154,7 +154,7 @@
 
                 <com.f0x1d.logfox.core.ui.view.NoDragTextView
                     android:id="@+id/log_text"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textIsSelectable="true"
                     android:padding="15dp"

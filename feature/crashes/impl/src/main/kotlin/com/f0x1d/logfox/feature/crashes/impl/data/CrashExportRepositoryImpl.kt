@@ -91,7 +91,10 @@ internal class CrashExportRepositoryImpl @Inject constructor(
     }
 
     private fun formatLogFileContent(file: File): String {
-        val lines = file.readLines()
+        // Never let a missing log file break the whole export (F0x1d/LogFox#254)
+        if (!file.exists()) return ""
+
+        val lines = runCatching { file.readLines() }.getOrElse { return "" }
         return lines.mapIndexed { index, line ->
             logLineParser.parse(index.toLong(), line)?.let { logLine ->
                 logLineFormatterRepository.formatForExport(logLine)

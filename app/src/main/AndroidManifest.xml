@@ -32,6 +32,30 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".presentation.ui.activity.LogFileViewerActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.LogFox">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" android:mimeType="text/*" />
+                <data android:scheme="file" android:mimeType="text/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:scheme="content" android:mimeType="application/octet-stream" android:pathPattern=".*\\.log" />
+                <data android:scheme="file" android:mimeType="application/octet-stream" android:pathPattern=".*\\.log" />
+            </intent-filter>
+        </activity>
+
         <receiver android:name=".receiver.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>

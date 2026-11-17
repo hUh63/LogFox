@@ -11,7 +11,11 @@ internal class CrashLogRepositoryImpl @Inject constructor(
     private val logLineFormatterRepository: LogLineFormatterRepository,
 ) : CrashLogRepository {
     override fun readCrashLog(appCrash: AppCrash): List<String> {
-        val lines = appCrash.logFile?.readLines() ?: return emptyList()
+        // Crash log file may be gone (cleared storage, deleted crash, restored backup).
+        // Reading it unguarded throws FileNotFoundException and crashes the app (F0x1d/LogFox#254)
+        val logFile = appCrash.logFile?.takeIf { it.exists() } ?: return emptyList()
+
+        val lines = runCatching { logFile.readLines() }.getOrElse { return emptyList() }
 
         return lines.mapIndexed { index, line ->
             logLineParser.parse(index.toLong(), line)?.let { logLine ->

@@ -54,10 +54,24 @@ internal class LogLineParserImpl @Inject constructor(
         val integerUid = resolveIntegerUid(uid) ?: return null
 
         return runCatching {
-            context.packageManager
+            val packageManager = context.packageManager
+
+            // Multiple packages can share a single Linux uid (android:sharedUserId),
+            // e.g. dozens of system apps under "android.uid.system". Picking the first
+            // one made logs look like they come from a random sibling package, so
+            // prefer the shared user id which is the only meaningful name for a group
+            // (F0x1d/LogFox#239)
+            val packageName = packageManager
                 .getPackagesForUid(integerUid)
                 ?.firstOrNull()
-                ?.also { packageName -> uidsCache.put(uid, packageName) }
+                ?: return@runCatching null
+
+            val sharedUserId = runCatching {
+                packageManager.getApplicationInfo(packageName, 0).sharedUserId
+            }.getOrNull()
+
+            (sharedUserId?.takeIf { it.isNotEmpty() } ?: packageName)
+                .also { resolved -> uidsCache.put(uid, resolved) }
         }.getOrNull()
     }
 
