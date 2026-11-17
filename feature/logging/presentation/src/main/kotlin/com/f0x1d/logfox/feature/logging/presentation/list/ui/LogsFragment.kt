@@ -121,13 +121,11 @@ internal class LogsFragment :
 
                 send(LogsCommand.SetLevelFilter(levels))
 
-                snackbar(
-                    if (levels.isEmpty()) {
-                        getString(Strings.level_filter_all)
-                    } else {
-                        getString(Strings.level_filter_active, levels.joinToString(" ") { it.letter })
-                    },
-                )
+                if (levels.isEmpty()) {
+                    snackbar(Strings.level_filter_all)
+                } else {
+                    snackbar(Strings.level_filter_active, levels.joinToString(" ") { it.letter })
+                }
             }
         }
 
