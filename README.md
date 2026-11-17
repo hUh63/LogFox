@@ -70,3 +70,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
+
+## Upstream issues
+
+Status of every [upstream issue](https://github.com/F0x1d/LogFox/issues) in this fork: [docs/upstream-issues.md](docs/upstream-issues.md).

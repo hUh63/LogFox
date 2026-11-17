@@ -18,10 +18,10 @@ android {
             .environmentVariable("VERSION_CODE")
             .orNull
             ?.toIntOrNull()
-            ?: 81
+            ?: 82
         versionName = providers
             .environmentVariable("VERSION_NAME")
-            .getOrElse("2.1.10-hUh63-1.1")
+            .getOrElse("2.1.10-hUh63-1.2")
     }
 
     buildFeatures {
