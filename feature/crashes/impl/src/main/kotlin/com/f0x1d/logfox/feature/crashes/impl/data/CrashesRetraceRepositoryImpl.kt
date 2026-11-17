@@ -9,7 +9,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,7 +38,7 @@ internal class CrashesRetraceRepositoryImpl @Inject constructor(
     override suspend fun importMapping(uri: Uri): Boolean = withContext(ioDispatcher) {
         runCatching {
             val text = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                inputStream.readBytes(MAX_MAPPING_BYTES).decodeToString()
+                readTextWithLimit(inputStream)
             } ?: return@runCatching false
 
             val retrace = ProguardRetrace.parse(text)
@@ -49,6 +51,28 @@ internal class CrashesRetraceRepositoryImpl @Inject constructor(
             Timber.e(throwable, "Failed to import ProGuard mapping")
             false
         }
+    }
+
+    private fun readTextWithLimit(inputStream: InputStream): String? {
+        val output = ByteArrayOutputStream()
+
+        val chunk = ByteArray(64 * 1024)
+        var total = 0
+
+        while (true) {
+            val read = inputStream.read(chunk)
+
+            if (read < 0) break
+
+            total += read
+
+            // Bail out instead of filling the disk with a file that is not a mapping
+            if (total > MAX_MAPPING_BYTES) return null
+
+            output.write(chunk, 0, read)
+        }
+
+        return output.toByteArray().decodeToString()
     }
 
     override suspend fun clearMapping() = withContext(ioDispatcher) {
