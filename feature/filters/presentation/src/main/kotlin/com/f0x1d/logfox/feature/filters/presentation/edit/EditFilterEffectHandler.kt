@@ -7,6 +7,9 @@ import com.f0x1d.logfox.feature.filters.api.domain.GetFilterByIdFlowUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.UpdateFilterUseCase
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 
 internal class EditFilterEffectHandler @Inject constructor(
@@ -15,6 +18,12 @@ internal class EditFilterEffectHandler @Inject constructor(
     private val updateFilterUseCase: UpdateFilterUseCase,
     private val exportFiltersToUriUseCase: ExportFiltersToUriUseCase,
 ) : EffectHandler<EditFilterSideEffect, EditFilterCommand> {
+
+    // Auto-save fires on every keystroke and every effect runs in its own coroutine, so two
+    // saves can overlap and an older snapshot can win the race and overwrite newer text.
+    // Only the newest snapshot is allowed to be written, and writes are serialized.
+    private val saveMutex = Mutex()
+    private val saveVersion = AtomicLong(0L)
 
     override suspend fun handle(
         effect: EditFilterSideEffect,
@@ -52,40 +61,7 @@ internal class EditFilterEffectHandler @Inject constructor(
                 onCommand(EditFilterCommand.SavedAndClose)
             }
 
-            is EditFilterSideEffect.SaveFilter -> {
-                if (effect.filter == null) {
-                    createFilterUseCase(
-                        name = effect.name,
-                        including = effect.including,
-                        enabled = effect.enabled,
-                        enabledLogLevels = effect.enabledLogLevels,
-                        uid = effect.uid,
-                        pid = effect.pid,
-                        tid = effect.tid,
-                        packageName = effect.packageName,
-                        tag = effect.tag,
-                        content = effect.content,
-                        tagRegex = effect.tagRegex,
-                        contentRegex = effect.contentRegex,
-                    )
-                } else {
-                    updateFilterUseCase(
-                        userFilter = effect.filter,
-                        name = effect.name,
-                        including = effect.including,
-                        enabled = effect.enabled,
-                        enabledLogLevels = effect.enabledLogLevels,
-                        uid = effect.uid,
-                        pid = effect.pid,
-                        tid = effect.tid,
-                        packageName = effect.packageName,
-                        tag = effect.tag,
-                        content = effect.content,
-                        tagRegex = effect.tagRegex,
-                        contentRegex = effect.contentRegex,
-                    )
-                }
-            }
+            is EditFilterSideEffect.SaveFilter -> save(effect)
 
             is EditFilterSideEffect.ExportFilter -> {
                 exportFiltersToUriUseCase(effect.uri, listOfNotNull(effect.filter))
@@ -95,6 +71,49 @@ internal class EditFilterEffectHandler @Inject constructor(
             is EditFilterSideEffect.NavigateToAppPicker -> Unit
             is EditFilterSideEffect.Close -> Unit
             is EditFilterSideEffect.ConfirmDiscard -> Unit
+        }
+    }
+
+    private suspend fun save(effect: EditFilterSideEffect.SaveFilter) {
+        val version = saveVersion.incrementAndGet()
+
+        saveMutex.withLock {
+            // A newer snapshot is already queued up, writing this one would only
+            // overwrite fresher text with older text
+            if (version != saveVersion.get()) return@withLock
+
+            if (effect.filter == null) {
+                createFilterUseCase(
+                    name = effect.name,
+                    including = effect.including,
+                    enabled = effect.enabled,
+                    enabledLogLevels = effect.enabledLogLevels,
+                    uid = effect.uid,
+                    pid = effect.pid,
+                    tid = effect.tid,
+                    packageName = effect.packageName,
+                    tag = effect.tag,
+                    content = effect.content,
+                    tagRegex = effect.tagRegex,
+                    contentRegex = effect.contentRegex,
+                )
+            } else {
+                updateFilterUseCase(
+                    userFilter = effect.filter,
+                    name = effect.name,
+                    including = effect.including,
+                    enabled = effect.enabled,
+                    enabledLogLevels = effect.enabledLogLevels,
+                    uid = effect.uid,
+                    pid = effect.pid,
+                    tid = effect.tid,
+                    packageName = effect.packageName,
+                    tag = effect.tag,
+                    content = effect.content,
+                    tagRegex = effect.tagRegex,
+                    contentRegex = effect.contentRegex,
+                )
+            }
         }
     }
 }
