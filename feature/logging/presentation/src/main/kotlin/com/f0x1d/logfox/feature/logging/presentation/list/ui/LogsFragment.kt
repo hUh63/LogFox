@@ -234,7 +234,7 @@ internal class LogsFragment :
             }
 
             is LogsSideEffect.LogcatSilentWarning -> {
-                snackbar(getString(Strings.logcat_silent_warning, sideEffect.property))
+                snackbar(Strings.logcat_silent_warning, sideEffect.property)
             }
 
             is LogsSideEffect.CopyText -> {
