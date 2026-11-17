@@ -180,4 +180,20 @@
     <string name="mcp_server_status_stopped">已停止</string>
     <string name="mcp_server_stop">停止</string>
     <string name="mcp_server_stop_desc">停止 MCP 服务器</string>
+    <string name="enable_mcp_server">启用 MCP 服务器</string>
+    <string name="enable_mcp_server_desc">通过 MCP（模型上下文协议）向 AI 助手提供 LogFox 的日志与崩溃数据</string>
+    <string name="server_port">服务器端口</string>
+    <string name="default_port">默认: %s</string>
+    <string name="invalid_port">端口必须在 1024 到 65535 之间</string>
+    <string name="server_status">服务器状态</string>
+    <string name="server_running">运行在端口 %d</string>
+    <string name="server_stopped">已停止</string>
+    <string name="server_start_failed">启动失败：%s</string>
+    <string name="local_link">本地链接</string>
+    <string name="lan_link">局域网链接</string>
+    <string name="not_set">未设置</string>
+    <string name="copied">已复制</string>
+    <string name="port_value">当前端口：%s</string>
+    <string name="mcp_server_warning">局域网链接可被同一网络内的任意设备访问，请仅在可信网络中启用服务器</string>
+    <string name="preference_copied">已将“%1$s”复制到剪贴板。</string>
 </resources>

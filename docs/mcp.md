@@ -15,11 +15,19 @@ Settings → Service → **MCP Server**:
 | Preference | Description |
 | --- | --- |
 | Enable MCP server | Starts / stops the `McpServerService` foreground service |
-| Server port | Port to listen on, `8765` by default (edited through a dialog) |
+| Server status | `Running on port N` / `Stopped` / `Failed to start: <reason>` |
+| Server port | Port to listen on, `8765` by default, validated to 1024..65535; changing it restarts the server |
+| Local link | `http://127.0.0.1:<port>` — tap to copy |
+| LAN link | `http://<device-ip>:<port>` — tap to copy (reachable by any device in your network) |
 
 The server binds to `0.0.0.0` and starts automatically on app launch while
 the preference is enabled. A foreground notification shows the current port
-and allows stopping the server.
+and allows stopping the server. Tapping the notification opens LogFox.
+
+## Signing
+
+Release builds are signed with the fixed key in `app/keystore` — see
+[app/keystore/README.md](../app/keystore/README.md) (owner `CN=hUh63`, 100 years).
 
 ## Endpoints
 

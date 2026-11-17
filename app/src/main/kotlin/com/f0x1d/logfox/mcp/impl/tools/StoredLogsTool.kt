@@ -57,6 +57,12 @@ class StoredLogsTool(
         }
 
         files.sortedBy { it.name }.forEach { file ->
+            if (builder.length >= MAX_TOTAL_CHARS) {
+                builder.append("\n[output truncated at $MAX_TOTAL_CHARS chars]\n")
+
+                return
+            }
+
             if (file.isDirectory) {
                 appendDir(builder, file, file.name)
             } else {
@@ -64,13 +70,7 @@ class StoredLogsTool(
                 builder.append("```log\n")
 
                 try {
-                    var text = file.readText()
-
-                    if (text.length > MAX_FILE_CHARS) {
-                        text = text.substring(0, MAX_FILE_CHARS) + "\n[TRUNCATED at $MAX_FILE_CHARS chars]\n"
-                    }
-
-                    builder.append(text)
+                    builder.append(readLimited(file))
                 } catch (e: Exception) {
                     builder.append("[read error] ").append(e.message)
                 }
@@ -80,7 +80,32 @@ class StoredLogsTool(
         }
     }
 
+    /**
+     * Reads at most [MAX_FILE_CHARS] characters so that huge logs can not blow up
+     * the heap (files are still read through a small buffer).
+     */
+    private fun readLimited(file: File): String = file.bufferedReader().use { reader ->
+        val buffer = CharArray(MAX_FILE_CHARS)
+        var total = 0
+
+        while (total < MAX_FILE_CHARS) {
+            val read = reader.read(buffer, total, MAX_FILE_CHARS - total)
+
+            if (read < 0) {
+                break
+            }
+
+            total += read
+        }
+
+        val text = String(buffer, 0, total)
+        val truncated = reader.read() >= 0
+
+        if (truncated) "$text\n[TRUNCATED at $MAX_FILE_CHARS chars]\n" else text
+    }
+
     companion object {
         private const val MAX_FILE_CHARS = 500_000
+        private const val MAX_TOTAL_CHARS = 1_500_000
     }
 }

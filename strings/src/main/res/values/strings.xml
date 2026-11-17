@@ -194,4 +194,20 @@
     <string name="mcp_server_status_stopped">Stopped</string>
     <string name="mcp_server_stop">Stop</string>
     <string name="mcp_server_stop_desc">Stop MCP Server</string>
+    <string name="enable_mcp_server">Enable MCP server</string>
+    <string name="enable_mcp_server_desc">Expose LogFox logs and crashes to AI assistants over MCP (Model Context Protocol)</string>
+    <string name="server_port">Server port</string>
+    <string name="default_port">Default: %s</string>
+    <string name="invalid_port">Port must be between 1024 and 65535</string>
+    <string name="server_status">Server status</string>
+    <string name="server_running">Running on port %d</string>
+    <string name="server_stopped">Stopped</string>
+    <string name="server_start_failed">Failed to start: %s</string>
+    <string name="local_link">Local link</string>
+    <string name="lan_link">LAN link</string>
+    <string name="not_set">Not set</string>
+    <string name="copied">Copied</string>
+    <string name="port_value">Port: %s</string>
+    <string name="mcp_server_warning">The LAN link is reachable by any device on your network. Keep the server enabled only on trusted networks</string>
+    <string name="preference_copied">\"%1$s\" copied to clipboard.</string>
 </resources>

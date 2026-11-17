@@ -6,11 +6,11 @@ on:
       version_name:
         description: 'Version name for the APK'
         required: false
-        default: '1.1-logfox-mcp'
+        default: '2.1.10-hUh63-1.0'
       version_code:
         description: 'Version code for the APK'
         required: false
-        default: '101'
+        default: '80'
   push:
     branches:
       - master
@@ -27,12 +27,12 @@ permissions:
   contents: write
 
 env:
-  VERSION_NAME: ${{ github.event.inputs.version_name || '1.1-logfox-mcp' }}
-  VERSION_CODE: ${{ github.event.inputs.version_code || '101' }}
+  VERSION_NAME: ${{ github.event.inputs.version_name || '2.1.10-hUh63-1.0' }}
+  VERSION_CODE: ${{ github.event.inputs.version_code || '80' }}
 
 jobs:
   build:
-    name: Build debug APK
+    name: Build signed release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -53,15 +53,15 @@ jobs:
           sdkmanager --install "platforms;android-36" "build-tools;36.1.0" > /dev/null 2>&1 || true
           sdkmanager --list_installed | head -20 || true
 
-      - name: Build debug APK
+      - name: Build release APK
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
       - name: Collect APK
         run: |
           mkdir -p apk-out
-          find app/build/outputs/apk -name '*.apk' -exec cp -v {} apk-out/ \;
+          find app/build/outputs/apk/release -name '*.apk' -exec cp -v {} apk-out/ \;
           ls -l apk-out
 
       - name: Verify APK
@@ -69,9 +69,11 @@ jobs:
           set -e
           APK=$(ls apk-out/*.apk | head -1)
           ls -l "$APK"
+
           AAPT="$ANDROID_HOME/build-tools/36.1.0/aapt2"
           "$AAPT" dump badging "$APK" | head -5 || true
           "$AAPT" dump xmltree --file AndroidManifest.xml "$APK" | grep -i "McpServerService" || true
+
           found=0
           for dex in $(unzip -Z1 "$APK" | grep -E '^classes[0-9]*\.dex$'); do
             if unzip -p "$APK" "$dex" | grep -qa "com/f0x1d/logfox/mcp/impl/McpServerService"; then
@@ -81,10 +83,13 @@ jobs:
           done
           test "$found" = "1"
 
+          APKSIGNER="$ANDROID_HOME/build-tools/36.1.0/apksigner"
+          "$APKSIGNER" verify --print-certs "$APK"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: logfox-mcp-apk
+          name: logfox-release-apk
           path: apk-out/*.apk
           if-no-files-found: error
           retention-days: 30

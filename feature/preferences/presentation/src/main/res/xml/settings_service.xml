@@ -87,14 +87,9 @@
         app:iconSpaceReserved="false"
         app:allowDividerAbove="false">
 
-        <Preference
-            android:title="@string/mcp_server_status"
-            android:key="pref_mcp_server_status"
-            android:selectable="false"
-            app:iconSpaceReserved="false" />
-
         <SwitchPreferenceCompat
-            android:title="@string/mcp_server_enabled"
+            android:title="@string/enable_mcp_server"
+            android:summary="@string/enable_mcp_server_desc"
             android:key="pref_mcp_server_enabled"
             android:defaultValue="true"
             app:singleLineTitle="false"
@@ -102,19 +97,32 @@
             app:iconSpaceReserved="false" />
 
         <Preference
-            android:title="@string/mcp_server_port"
+            android:title="@string/server_status"
+            android:key="pref_mcp_server_status"
+            android:selectable="false"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:title="@string/server_port"
             android:key="pref_mcp_server_port"
-            android:summary="@string/mcp_server_port_desc"
             app:iconSpaceReserved="false" />
 
         <Preference
-            android:title="@string/mcp_server_start"
-            android:key="pref_mcp_server_start"
+            android:title="@string/local_link"
+            android:key="pref_mcp_server_local_link"
+            android:selectable="true"
             app:iconSpaceReserved="false" />
 
         <Preference
-            android:title="@string/mcp_server_stop"
-            android:key="pref_mcp_server_stop"
+            android:title="@string/lan_link"
+            android:key="pref_mcp_server_lan_link"
+            android:selectable="true"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:title="@string/mcp_server_warning"
+            android:key="pref_mcp_server_warning"
+            android:selectable="false"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
 </PreferenceScreen>

@@ -46,9 +46,11 @@ Endpoints: `/sse`, `/messages`, `/mcp`, `/logs`, `/query`, `/filters`,
 `/tools`, `/health`. Tools: `read_logs`, `get_stored_logs`, `set_query`,
 `get_query`, `clear_logs`, `get_filters`. See [docs/mcp.md](docs/mcp.md).
 
-APKs are built automatically by the `Build APK` workflow
-(`.github/workflows/build-mcp-apk.yml`) on every push to `master` and can be
-started manually from the Actions tab.
+Release APKs are built automatically by the `Build APK` workflow
+(`.github/workflows/build-mcp-apk.yml`) on every push to `master`, on `v*` tags
+(attached to the GitHub release) and on demand from the Actions tab. Every
+release is signed with the fixed key committed in [app/keystore](app/keystore/README.md)
+(owner `CN=hUh63`, valid for 100 years).
 
 ## License
 

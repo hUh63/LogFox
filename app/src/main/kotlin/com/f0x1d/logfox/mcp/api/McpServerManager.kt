@@ -16,6 +16,12 @@ interface McpServerManager {
 
     suspend fun stop()
 
+    /**
+     * Synchronously stops the server. Must be used from places whose coroutine scope
+     * is about to be cancelled (for example `Service.onDestroy`).
+     */
+    fun stopNow()
+
     companion object {
         const val DEFAULT_PORT = 8765
     }

@@ -133,6 +133,16 @@ internal class McpHttpServer(
 
         Timber.d("[MCP] ${request.method} $path")
 
+        if (request.oversized) {
+            writeJson(
+                output,
+                JsonObject().apply { addProperty("error", "Request body too large") },
+                status = "413 Payload Too Large",
+            )
+
+            return
+        }
+
         when {
             request.method == METHOD_OPTIONS -> writeResponse(output, "204 No Content", CONTENT_TYPE_TEXT, ByteArray(0))
 
@@ -403,17 +413,38 @@ internal class McpHttpServer(
 
         if (terminal == null) {
             writeEvent(output, EVENT_ERROR, "No terminal selected")
+
             return
         }
 
         Timber.d("[MCP] GET /logs")
 
+        val lines = Channel<McpLogLine>(Channel.UNLIMITED)
+
+        val collecting = scope.launch {
+            runCatching {
+                startLoggingUseCase(terminal).collect { line ->
+                    lines.send(McpLogLine.from(line))
+                }
+            }.onFailure { Timber.e(it, "[MCP] /logs error") }
+        }
+
         try {
-            startLoggingUseCase(terminal).collect { line ->
-                writeEvent(output, EVENT_MESSAGE, gson.toJson(McpLogLine.from(line)))
+            while (running.get()) {
+                val line = withTimeoutOrNull(SSE_KEEPALIVE_MS) { lines.receive() }
+
+                if (line == null) {
+                    output.write(": keepalive  \n\n".toByteArray())
+                    output.flush()
+                } else {
+                    writeEvent(output, EVENT_MESSAGE, gson.toJson(line))
+                }
             }
         } catch (e: Exception) {
-            Timber.e(e, "[MCP] /logs error")
+            Timber.d("[MCP] /logs stream closed: ${e.message}")
+        } finally {
+            collecting.cancel()
+            lines.close()
         }
     }
 
@@ -588,6 +619,16 @@ internal class McpHttpServer(
 
         val contentLength = headers["content-length"]?.toIntOrNull() ?: 0
 
+        if (contentLength > MAX_BODY_BYTES) {
+            return HttpRequest(
+                method = method,
+                path = target.substringBefore('?'),
+                query = emptyMap(),
+                body = "",
+                oversized = true,
+            )
+        }
+
         val body = readBody(input, contentLength)
 
         val path = target.substringBefore('?')
@@ -747,6 +788,7 @@ internal class McpHttpServer(
         val path: String,
         val query: Map<String, String>,
         val body: String,
+        val oversized: Boolean = false,
     )
 
     companion object {
@@ -774,6 +816,7 @@ internal class McpHttpServer(
         private const val CONTENT_TYPE_JSON = "application/json; charset=utf-8"
 
         private const val SSE_KEEPALIVE_MS = 15_000L
+        private const val MAX_BODY_BYTES = 4 * 1024 * 1024
         private const val STREAM_TIMEOUT_MS = 10_000L
 
         private val ENDPOINTS = listOf(

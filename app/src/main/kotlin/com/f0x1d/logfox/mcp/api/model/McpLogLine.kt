@@ -1,11 +1,16 @@
 package com.f0x1d.logfox.mcp.api.model
 
+import androidx.annotation.Keep
 import com.f0x1d.logfox.feature.logging.api.model.LogLevel
 import com.f0x1d.logfox.feature.logging.api.model.LogLine
 
 /**
  * Plain, serializable snapshot of a [LogLine] as exposed by the MCP server.
+ *
+ * Kept from R8 shrinking/renaming: the class is serialized by Gson, so its field
+ * names are part of the wire format.
  */
+@Keep
 data class McpLogLine(
     val id: Long,
     val dateAndTime: Long,

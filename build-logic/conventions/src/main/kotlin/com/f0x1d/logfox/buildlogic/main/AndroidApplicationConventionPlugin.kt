@@ -22,14 +22,23 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
 
                 val releaseSigningConfigName = "release"
                 val keyStoreFile = file("keystore/main.jks")
+                val keyStorePropertiesFile = file("keystore/keystore.properties")
+                val keyStoreProperties = java.util.Properties().apply {
+                    if (keyStorePropertiesFile.exists()) {
+                        keyStorePropertiesFile.inputStream().use { load(it) }
+                    }
+                }
 
                 if (keyStoreFile.exists()) {
                     signingConfigs {
                         create(releaseSigningConfigName) {
                             storeFile = keyStoreFile
                             storePassword = System.getenv("KEY_STORE_PASSWORD")
+                                ?: keyStoreProperties.getProperty("storePassword")
                             keyAlias = System.getenv("ALIAS")
+                                ?: keyStoreProperties.getProperty("keyAlias")
                             keyPassword = System.getenv("KEY_PASSWORD")
+                                ?: keyStoreProperties.getProperty("keyPassword")
                         }
                     }
                 }

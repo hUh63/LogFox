@@ -16,6 +16,7 @@ import com.f0x1d.logfox.mcp.impl.tools.GetQueryTool
 import com.f0x1d.logfox.mcp.impl.tools.ReadLogsTool
 import com.f0x1d.logfox.mcp.impl.tools.SetQueryTool
 import com.f0x1d.logfox.mcp.impl.tools.StoredLogsTool
+import androidx.preference.PreferenceManager
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,9 @@ class McpServerManagerImpl @Inject constructor(
     override suspend fun start(port: Int) {
         if (server != null) {
             Timber.d("[MCP] Server already running on port ${this.port}")
+
+            publishState(error = null)
+
             return
         }
 
@@ -64,6 +68,8 @@ class McpServerManagerImpl @Inject constructor(
 
         if (!isPortAvailable(port)) {
             Timber.e("[MCP] Port $port is busy, failed to start server")
+
+            publishState(error = "port $port is already in use")
 
             return
         }
@@ -86,28 +92,58 @@ class McpServerManagerImpl @Inject constructor(
             server = instance
             this.port = port
 
+            publishState(error = null)
+
             Timber.d("[MCP] Server start completed, isRunning=$isRunning")
         } catch (e: Exception) {
             Timber.e(e, "[MCP] Failed to start server on port $port")
+
+            publishState(error = e.message ?: e::class.java.simpleName)
         }
     }
 
     override suspend fun stop() {
-        val instance = server
-
-        if (instance == null) {
+        if (server == null) {
             Timber.d("[MCP] Server not running, ignoring")
+
+            publishState(error = null)
+
             return
         }
 
         Timber.d("[MCP] Server stop requested")
+
+        stopNow()
+
+        Timber.d("[MCP] Server stop completed")
+    }
+
+    override fun stopNow() {
+        val instance = server ?: return
 
         runCatching { instance.stop() }
             .onFailure { Timber.e(it, "[MCP] Failed to stop server") }
 
         server = null
 
-        Timber.d("[MCP] Server stop completed")
+        publishState(error = null)
+
+        Timber.d("[MCP] Server stopped successfully")
+    }
+
+    /**
+     * Mirrors the current server state into default shared preferences so that the
+     * settings screen (which lives in another Gradle module) can render it.
+     */
+    private fun publishState(error: String?) {
+        runCatching {
+            PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putBoolean(PREF_MCP_SERVER_RUNNING, server != null)
+                .putInt(PREF_MCP_SERVER_ACTIVE_PORT, port)
+                .putString(PREF_MCP_SERVER_ERROR, error)
+                .apply()
+        }
     }
 
     private fun buildToolsMap(): Map<String, McpTool> {
@@ -135,6 +171,12 @@ class McpServerManagerImpl @Inject constructor(
         Timber.i("[MCP] Tools map built, total ${result.size} tools")
 
         return result
+    }
+
+    private companion object {
+        const val PREF_MCP_SERVER_RUNNING = "pref_mcp_server_running"
+        const val PREF_MCP_SERVER_ACTIVE_PORT = "pref_mcp_server_active_port"
+        const val PREF_MCP_SERVER_ERROR = "pref_mcp_server_error"
     }
 
     private suspend fun isPortAvailable(port: Int): Boolean = withContext(Dispatchers.IO) {

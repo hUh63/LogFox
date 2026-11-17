@@ -1,11 +1,17 @@
 package com.f0x1d.logfox.feature.preferences.presentation.service.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
 import android.widget.EditText
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.util.Collections
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
 import androidx.preference.Preference
@@ -74,39 +80,6 @@ internal class PreferencesServiceFragment :
     }
 
     private fun setupMcpPreferences() {
-        findPreference<Preference>(PREF_MCP_SERVER_START)?.apply {
-            isVisible = false
-
-            setOnPreferenceClickListener {
-                startMcpServer()
-
-                true
-            }
-        }
-
-        findPreference<Preference>(PREF_MCP_SERVER_STOP)?.apply {
-            isVisible = false
-
-            setOnPreferenceClickListener {
-                stopMcpServer()
-
-                true
-            }
-        }
-
-        findPreference<Preference>(PREF_MCP_SERVER_PORT)?.apply {
-            val port = PreferenceManager.getDefaultSharedPreferences(requireContext())
-                .getInt(PREF_MCP_SERVER_PORT, MCP_DEFAULT_PORT)
-
-            summary = "${getString(Strings.mcp_server_port)}: $port"
-
-            setOnPreferenceClickListener {
-                showMcpPortDialog()
-
-                true
-            }
-        }
-
         findPreference<SwitchPreferenceCompat>(PREF_MCP_SERVER_ENABLED)?.apply {
             val preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
 
@@ -128,25 +101,112 @@ internal class PreferencesServiceFragment :
                 true
             }
         }
+
+        findPreference<Preference>(PREF_MCP_SERVER_PORT)?.setOnPreferenceClickListener {
+            showMcpPortDialog()
+
+            true
+        }
+
+        findPreference<Preference>(PREF_MCP_SERVER_LOCAL_LINK)?.setOnPreferenceClickListener { preference ->
+            copyMcpLink(preference.summary?.toString())
+
+            true
+        }
+
+        findPreference<Preference>(PREF_MCP_SERVER_LAN_LINK)?.setOnPreferenceClickListener { preference ->
+            copyMcpLink(preference.summary?.toString())
+
+            true
+        }
+
+        refreshMcpPreferences()
     }
 
-    private fun startMcpServer() {
-        requireContext().toast(Strings.mcp_server_start)
+    private fun refreshMcpPreferences() {
+        val preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+
+        val enabled = preferences.getBoolean(PREF_MCP_SERVER_ENABLED, true)
+        val configuredPort = preferences.getInt(PREF_MCP_SERVER_PORT, MCP_DEFAULT_PORT)
+
+        val running = preferences.getBoolean(PREF_MCP_SERVER_RUNNING, false)
+        val activePort = preferences.getInt(PREF_MCP_SERVER_ACTIVE_PORT, configuredPort)
+        val error = preferences.getString(PREF_MCP_SERVER_ERROR, null)
+
+        findPreference<SwitchPreferenceCompat>(PREF_MCP_SERVER_ENABLED)?.isChecked = enabled
+
+        findPreference<Preference>(PREF_MCP_SERVER_STATUS)?.summary = when {
+            running -> getString(Strings.server_running, activePort)
+            !error.isNullOrBlank() -> getString(Strings.server_start_failed, error)
+            else -> getString(Strings.server_stopped)
+        }
+
+        findPreference<Preference>(PREF_MCP_SERVER_PORT)?.summary = getString(Strings.default_port, configuredPort.toString())
+
+        val localLink = if (running) "http://127.0.0.1:$activePort" else null
+        val lanLink = if (running) lanAddress()?.let { "http://$it:$activePort" } else null
+
+        findPreference<Preference>(PREF_MCP_SERVER_LOCAL_LINK)?.summary =
+            localLink ?: getString(Strings.not_set)
+
+        findPreference<Preference>(PREF_MCP_SERVER_LAN_LINK)?.summary =
+            lanLink ?: getString(Strings.not_set)
+    }
+
+    private fun lanAddress(): String? = runCatching {
+        Collections.list(NetworkInterface.getNetworkInterfaces())
+            .filter { it.isUp && !it.isLoopback && !it.isVirtual }
+            .sortedByDescending { it.name.startsWith("wlan") || it.name.startsWith("eth") }
+            .flatMap { Collections.list(it.inetAddresses) }
+            .filterIsInstance<Inet4Address>()
+            .firstOrNull { it.isSiteLocalAddress && !it.isLoopbackAddress }
+            ?.hostAddress
+    }.getOrNull()
+
+    private fun copyMcpLink(link: String?) {
+        val context = requireContext()
+
+        if (link.isNullOrBlank() || link == getString(Strings.not_set)) {
+            return
+        }
 
         runCatching {
-            ContextCompat.startForegroundService(requireContext(), mcpServerIntent())
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+            clipboard.setPrimaryClip(ClipData.newPlainText(context.getString(Strings.mcp_server), link))
+
+            context.toast(context.getString(Strings.preference_copied, link))
         }
     }
 
-    private fun stopMcpServer() {
-        requireContext().toast(Strings.mcp_server_stop_desc)
+    private fun startMcpServer() {
+        runCatching {
+            ContextCompat.startForegroundService(requireContext(), mcpServerIntent())
+        }
 
+        runCatching { requireView().postDelayed({ refreshMcpPreferences() }, MCP_REFRESH_DELAY_MS) }
+    }
+
+    private fun stopMcpServer() {
         runCatching {
             ContextCompat.startForegroundService(
                 requireContext(),
                 mcpServerIntent().apply { action = MCP_SERVICE_ACTION_STOP },
             )
         }
+
+        runCatching { requireView().postDelayed({ refreshMcpPreferences() }, MCP_REFRESH_DELAY_MS) }
+    }
+
+    private fun restartMcpServer() {
+        runCatching {
+            ContextCompat.startForegroundService(
+                requireContext(),
+                mcpServerIntent().apply { action = MCP_SERVICE_ACTION_RESTART },
+            )
+        }
+
+        runCatching { requireView().postDelayed({ refreshMcpPreferences() }, MCP_REFRESH_DELAY_MS * 2) }
     }
 
     private fun mcpServerIntent() = Intent().apply {
@@ -162,20 +222,36 @@ internal class PreferencesServiceFragment :
         }
 
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle(Strings.mcp_server_port)
+            .setTitle(Strings.server_port)
             .setView(editText)
             .setPositiveButton(Strings.save) { _, _ ->
-                val port = editText.text.toString().toIntOrNull() ?: MCP_DEFAULT_PORT
+                val port = editText.text.toString().toIntOrNull()
+
+                if (port == null || port < MCP_MIN_PORT || port > MCP_MAX_PORT) {
+                    requireContext().toast(Strings.invalid_port)
+
+                    return@setPositiveButton
+                }
 
                 preferences.edit().putInt(PREF_MCP_SERVER_PORT, port).apply()
 
                 findPreference<Preference>(PREF_MCP_SERVER_PORT)?.summary =
-                    "${getString(Strings.mcp_server_port)}: $port"
+                    getString(Strings.default_port, port.toString())
 
-                requireContext().toast("${getString(Strings.mcp_server_port)}: $port")
+                if (preferences.getBoolean(PREF_MCP_SERVER_ENABLED, true)) {
+                    restartMcpServer()
+                } else {
+                    refreshMcpPreferences()
+                }
             }
             .setNegativeButton(Strings.close, null)
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        runCatching { refreshMcpPreferences() }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -253,13 +329,23 @@ internal class PreferencesServiceFragment :
     companion object {
         private const val MCP_SERVICE_CLASS = "com.f0x1d.logfox.mcp.impl.McpServerService"
         private const val MCP_SERVICE_ACTION_STOP = "mcp.STOP_SERVER"
+        private const val MCP_SERVICE_ACTION_RESTART = "mcp.RESTART_SERVER"
 
         private const val PREF_MCP_SERVER_ENABLED = "pref_mcp_server_enabled"
         private const val PREF_MCP_SERVER_ENABLED_DEFAULT_V2 = "pref_mcp_server_enabled_default_v2"
         private const val PREF_MCP_SERVER_PORT = "pref_mcp_server_port"
-        private const val PREF_MCP_SERVER_START = "pref_mcp_server_start"
-        private const val PREF_MCP_SERVER_STOP = "pref_mcp_server_stop"
+        private const val PREF_MCP_SERVER_STATUS = "pref_mcp_server_status"
+        private const val PREF_MCP_SERVER_LOCAL_LINK = "pref_mcp_server_local_link"
+        private const val PREF_MCP_SERVER_LAN_LINK = "pref_mcp_server_lan_link"
+
+        private const val PREF_MCP_SERVER_RUNNING = "pref_mcp_server_running"
+        private const val PREF_MCP_SERVER_ACTIVE_PORT = "pref_mcp_server_active_port"
+        private const val PREF_MCP_SERVER_ERROR = "pref_mcp_server_error"
 
         private const val MCP_DEFAULT_PORT = 8765
+        private const val MCP_MIN_PORT = 1024
+        private const val MCP_MAX_PORT = 65535
+
+        private const val MCP_REFRESH_DELAY_MS = 700L
     }
 }
