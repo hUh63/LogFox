@@ -173,7 +173,8 @@ internal class McpHttpServer(
 
             path == "/tools" -> writeJson(output, toolsListJson())
 
-            path.startsWith("/tools/") && path.endsWith("/call") -> handleToolRest(path, request, output)
+            path.startsWith("/tools/") && path.endsWith("/call") && request.method == "POST" ->
+                handleToolRest(path, request, output)
 
             else -> writeJson(
                 output,
@@ -605,11 +606,17 @@ internal class McpHttpServer(
 
         val headers = LinkedHashMap<String, String>()
 
+        var headerCount = 0
+
         while (true) {
             val line = readLine(input) ?: break
 
             if (line.isEmpty()) {
                 break
+            }
+
+            if (++headerCount > MAX_HEADERS) {
+                return null
             }
 
             val index = line.indexOf(':')
@@ -819,6 +826,7 @@ internal class McpHttpServer(
 
         private const val SSE_KEEPALIVE_MS = 15_000L
         private const val MAX_BODY_BYTES = 4 * 1024 * 1024
+        private const val MAX_HEADERS = 100
         private const val STREAM_TIMEOUT_MS = 10_000L
 
         private val ENDPOINTS = listOf(
