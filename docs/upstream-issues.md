@@ -2,7 +2,7 @@
 
 All issues of [F0x1d/LogFox](https://github.com/F0x1d/LogFox/issues) (26 at the time of writing,
 18 open + 8 closed) checked against this fork. "Implemented" means the code ships in the
-`v2.1.10-hUh63-1.2` release.
+`v2.1.10-hUh63-1.3` release.
 
 ## Fixed / implemented here
 
@@ -31,14 +31,29 @@ All issues of [F0x1d/LogFox](https://github.com/F0x1d/LogFox/issues) (26 at the 
 | [#248](https://github.com/F0x1d/LogFox/issues/248) | "Discard changes?" without any edit | Already fixed upstream (render uses watcher-safe setters) |
 | [#238](https://github.com/F0x1d/LogFox/issues/238) | LogFox stuck on startup screen | Same root cause as #249/#256 (Shizuku path could wait forever); the setup screen now always finishes with success or an error |
 
+## Added in 1.3
+
+| # | Issue | What was done |
+|---|-------|---------------|
+| [#261](https://github.com/F0x1d/LogFox/issues/261) | Redesign the filters screen | Screen rebuilt: uid/pid/tid side by side, every text field has a clear (✕) icon, the name field sits on its own row, the log levels are a flat row of V D I W E F S buttons with a *clear* button next to them. The save button is gone: existing filters auto-save on every change (writes are serialized, a stale snapshot can never overwrite newer text) and leaving the screen always persists |
+| [#264](https://github.com/F0x1d/LogFox/issues/264) | Deobfuscate stacktraces with a ProGuard/R8 map file | Full retracer: **Crash details → ⋮ → Retrace: import mapping.txt** parses the mapping (class renames, method renames including overloads by line range, line numbers, `Caused by:` headers) and applies it to the log. Copy, share and export all use the retraced text. **Retrace: forget mapping** turns it off again |
+
+## Fixed in 1.3
+
+| Bug | What was done |
+|-----|---------------|
+| Crash right after authorizing Shizuku for the first time | The user-service binder dies while it is being (re)created after the grant, and `RemoteException`/`DeadObjectException` escaped `execute`/`executeNow`, the grant use case and `hardRestartApp`. All of them are guarded now, a dead binder resets the cached service instead of killing the app, and `pingBinder()` inside the service callback no longer throws into the process |
+| V D I W E F S buttons in the logs toolbar did nothing | `MaterialButton` toggles its own checked state before the click listener runs, so flipping it manually cancelled the tap — the level set never changed. The buttons are now the source of truth (`SetLevelFilter`), the active levels are shown in the toolbar subtitle, a snackbar confirms every tap and the same widget is reused in the filter editor |
+| Logging could stop silently | Storage, crash detection, recording and the broadcast receiver shared one collection coroutine: the first `IOException`/`SQLiteException` cancelled it and no new line was collected until the service restarted. Each step now fails on its own |
+| File logger could die and leak memory | The writer coroutine had no supervisor and the channel was unbounded: one failed write killed the loop and every later line stayed in memory. Now bounded (drop-oldest) with a supervisor scope |
+| Shizuku user service races | The process map was a plain `HashMap` written from several binder threads, ids were not atomic, finished processes were never removed, and a hung command pinned a binder thread forever |
+
 ## Not implemented (with reasons)
 
 | # | Issue | Reason |
 |---|-------|--------|
 | [#244](https://github.com/F0x1d/LogFox/issues/244) | Connect to remote devices over ADB | Needs a full ADB client (pairing, TLS, key exchange) inside the app — comparable in size to the whole logcat pipeline. Recommended workaround stays `adb connect` + a local forwarder |
 | [#252](https://github.com/F0x1d/LogFox/issues/252) | Request `READ_LOGS` at runtime | `READ_LOGS` is a signature/privileged permission; Android does not show a runtime dialog for it. It is either preinstalled-as-system, granted through `pm grant` (root/Shizuku/ADB) or not available at all. The setup screen keeps explaining the three possible paths |
-| [#261](https://github.com/F0x1d/LogFox/issues/261) | Redesign the filters screen | Partly addressed: level toggles and the name field exist, filters can be enabled/disabled inline. The requested full re-layout (fields in a row with per-field clear buttons, no save button, inline V D I W E F S) is a design change that also invalidates the current "confirm before discarding" behaviour — left for a dedicated UI pass |
-| [#264](https://github.com/F0x1d/LogFox/issues/264) (map files) | Import a ProGuard/R8 `mapping.txt` to deobfuscate stacktraces | The find & replace half is implemented; full map-file retracing needs a mapping parser + frame rewriting and is not in this release |
 
 ## Broadcast log events (Tasker / MacroDroid / Automate)
 

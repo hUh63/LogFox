@@ -46,6 +46,20 @@ Endpoints: `/sse`, `/messages`, `/mcp`, `/logs`, `/query`, `/filters`,
 `/tools`, `/health`. Tools: `read_logs`, `get_stored_logs`, `set_query`,
 `get_query`, `clear_logs`, `get_filters`. See [docs/mcp.md](docs/mcp.md).
 
+## ProGuard retrace
+
+Crash dumps of obfuscated builds can be deobfuscated in place: **Crash details → ⋮ →
+Retrace: import mapping.txt** stores a `mapping.txt` (class + method + line range parsing,
+`Caused by:` headers included) and every crash log is retraced before it is shown, copied,
+shared or exported. **Retrace: forget mapping** removes it again.
+
+## Log level filter
+
+The `V D I W E F S` row in the logs toolbar filters by level (Verbose, Debug, Info,
+Warning, Error, Fatal, Silent). Tapping toggles a level, the active levels appear in the
+toolbar subtitle and all buttons off means "show everything". The same row is used in the
+filter editor.
+
 Release APKs are built automatically by the `Build APK` workflow
 (`.github/workflows/build-mcp-apk.yml`) on every push to `master`, on `v*` tags
 (attached to the GitHub release) and on demand from the Actions tab. Every
