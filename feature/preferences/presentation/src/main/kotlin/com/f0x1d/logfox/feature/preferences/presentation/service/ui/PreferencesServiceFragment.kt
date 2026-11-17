@@ -131,7 +131,7 @@ internal class PreferencesServiceFragment :
     }
 
     private fun startMcpServer() {
-        toast(Strings.mcp_server_start)
+        requireContext().toast(Strings.mcp_server_start)
 
         runCatching {
             ContextCompat.startForegroundService(requireContext(), mcpServerIntent())
@@ -139,7 +139,7 @@ internal class PreferencesServiceFragment :
     }
 
     private fun stopMcpServer() {
-        toast(Strings.mcp_server_stop_desc)
+        requireContext().toast(Strings.mcp_server_stop_desc)
 
         runCatching {
             ContextCompat.startForegroundService(
@@ -172,7 +172,7 @@ internal class PreferencesServiceFragment :
                 findPreference<Preference>(PREF_MCP_SERVER_PORT)?.summary =
                     "${getString(Strings.mcp_server_port)}: $port"
 
-                toast("${getString(Strings.mcp_server_port)}: $port")
+                requireContext().toast("${getString(Strings.mcp_server_port)}: $port")
             }
             .setNegativeButton(Strings.close, null)
             .show()
