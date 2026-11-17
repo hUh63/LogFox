@@ -9,6 +9,7 @@ internal data class CrashDetailsViewState(
     val wrapCrashLogLines: Boolean,
     val useSeparateNotificationsChannelsForCrashes: Boolean,
     val textSize: Int,
+    val mappingAvailable: Boolean,
     val searchQuery: String,
     val searchMatchRanges: List<IntRange>,
 )

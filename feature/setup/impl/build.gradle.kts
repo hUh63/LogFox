@@ -13,4 +13,5 @@ dependencies {
     implementation(projects.feature.terminals.api)
 
     implementation(libs.bundles.androidx)
+    implementation(libs.timber)
 }

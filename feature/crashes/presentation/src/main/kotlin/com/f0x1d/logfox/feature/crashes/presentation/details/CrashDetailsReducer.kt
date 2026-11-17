@@ -20,6 +20,31 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
             searchMatchRanges = emptyList(),
         ).noSideEffects()
 
+        is CrashDetailsCommand.ImportMappingClicked -> state.withSideEffects(
+            CrashDetailsSideEffect.LaunchMappingPicker,
+        )
+
+        is CrashDetailsCommand.ImportMapping -> state.withSideEffects(
+            CrashDetailsSideEffect.ImportMapping(command.uri),
+        )
+
+        is CrashDetailsCommand.MappingImported -> state.copy(
+            mappingAvailable = command.success || state.mappingAvailable,
+        ).withSideEffects(
+            CrashDetailsSideEffect.MappingImported(command.success),
+            CrashDetailsSideEffect.LoadCrash,
+        )
+
+        is CrashDetailsCommand.ClearMappingClicked -> state.withSideEffects(
+            CrashDetailsSideEffect.ClearMappingStored,
+        )
+
+        is CrashDetailsCommand.MappingCleared -> state.copy(
+            mappingAvailable = false,
+        ).withSideEffects(
+            CrashDetailsSideEffect.LoadCrash,
+        )
+
         is CrashDetailsCommand.ShowReplaceDialog -> state.withSideEffects(
             CrashDetailsSideEffect.ShowReplace,
         )

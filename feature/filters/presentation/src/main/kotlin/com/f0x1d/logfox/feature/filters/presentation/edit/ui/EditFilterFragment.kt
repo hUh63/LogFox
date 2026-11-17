@@ -24,11 +24,9 @@ import com.f0x1d.logfox.feature.filters.presentation.edit.EditFilterSideEffect
 import com.f0x1d.logfox.feature.filters.presentation.edit.EditFilterState
 import com.f0x1d.logfox.feature.filters.presentation.edit.EditFilterViewModel
 import com.f0x1d.logfox.feature.filters.presentation.edit.EditFilterViewState
-import com.f0x1d.logfox.feature.logging.api.model.LogLevel
 import com.f0x1d.logfox.feature.navigation.api.Directions
 import com.f0x1d.logfox.feature.strings.Strings
 import com.google.android.material.color.MaterialColors
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.insetter.applyInsetter
 
@@ -53,11 +51,23 @@ internal class EditFilterFragment :
         uri?.let { send(EditFilterCommand.Export(it)) }
     }
 
-    // Enabled only while the form has unsaved changes; routes system/predictive back through TEA.
-    private val confirmDiscardOnBackPressedCallback = object : OnBackPressedCallback(false) {
+    // Routes system/predictive back through TEA so the filter is saved before leaving
+    private val closeOnBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
             send(EditFilterCommand.AttemptClose)
         }
+    }
+
+    private val levelButtons by lazy {
+        listOf(
+            binding.levelVerboseButton to 0,
+            binding.levelDebugButton to 1,
+            binding.levelInfoButton to 2,
+            binding.levelWarningButton to 3,
+            binding.levelErrorButton to 4,
+            binding.levelFatalButton to 5,
+            binding.levelSilentButton to 6,
+        )
     }
 
     // Setters that update each field without firing its text-changed callback, so rendering state
@@ -72,17 +82,6 @@ internal class EditFilterFragment :
     override fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?) = FragmentEditFilterBinding.inflate(inflater, container, false)
 
     override fun FragmentEditFilterBinding.onViewCreated(view: View, savedInstanceState: Bundle?) {
-        saveFab.applyInsetter {
-            type(
-                navigationBars = true,
-                ime = true,
-            ) {
-                margin(
-                    vertical = true,
-                    animated = true,
-                )
-            }
-        }
         scrollView.applyInsetter {
             type(
                 navigationBars = true,
@@ -110,7 +109,7 @@ internal class EditFilterFragment :
 
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
-            confirmDiscardOnBackPressedCallback,
+            closeOnBackPressedCallback,
         )
 
         includingButton.setOnClickListener {
@@ -119,16 +118,21 @@ internal class EditFilterFragment :
         enabledButton.setOnClickListener {
             send(EditFilterCommand.ToggleEnabled)
         }
-        logLevelsButton.setOnClickListener {
-            showFilterDialog()
+        levelButtons.forEach { (button, which) ->
+            button.setOnClickListener {
+                button.isChecked = !button.isChecked
+
+                send(EditFilterCommand.FilterLevel(which, button.isChecked))
+            }
+        }
+        clearLevelsButton.setOnClickListener {
+            levelButtons.forEach { (button, _) -> button.isChecked = false }
+
+            send(EditFilterCommand.ClearLevels)
         }
 
         selectAppButton.setOnClickListener {
             send(EditFilterCommand.SelectApp)
-        }
-
-        saveFab.setOnClickListener {
-            send(EditFilterCommand.Save)
         }
 
         setUidText = uidText.doAfterTextChanged(this@EditFilterFragment) { send(EditFilterCommand.UpdateUid(it?.toString().orEmpty())) }
@@ -144,8 +148,6 @@ internal class EditFilterFragment :
     }
 
     override fun render(state: EditFilterViewState) {
-        confirmDiscardOnBackPressedCallback.isEnabled = state.isDirty
-
         binding.apply {
             updateIncludingButton(state.including)
             updateEnabledButton(state.enabled)
@@ -157,6 +159,12 @@ internal class EditFilterFragment :
             setTextIfDifferent(packageNameText, state.packageName.orEmpty(), setPackageNameText)
             setTextIfDifferent(tagText, state.tag.orEmpty(), setTagText)
             setTextIfDifferent(contentText, state.content.orEmpty(), setContentText)
+
+            levelButtons.forEach { (button, which) ->
+                val checked = state.enabledLogLevels.getOrElse(which) { false }
+
+                if (button.isChecked != checked) button.isChecked = checked
+            }
 
             toolbar.menu.findItem(R.id.export_item).isVisible = state.filter != null
             toolbar.menu.findItem(R.id.tag_regex_item).isChecked = state.tagRegex
@@ -251,20 +259,6 @@ internal class EditFilterFragment :
         setupDialog = { setIcon(Icons.ic_dialog_text_fields) },
     ) { newName ->
         send(EditFilterCommand.UpdateName(newName.orEmpty()))
-    }
-
-    private fun showFilterDialog() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(Strings.log_levels)
-            .setIcon(Icons.ic_dialog_list)
-            .setMultiChoiceItems(
-                LogLevel.entries.map { it.name }.toTypedArray(),
-                viewModel.state.value.enabledLogLevels.toTypedArray().toBooleanArray(),
-            ) { _, which, checked ->
-                send(EditFilterCommand.FilterLevel(which, checked))
-            }
-            .setPositiveButton(Strings.close, null)
-            .show()
     }
 
     // Updates the field only when the value actually changed, via the watcher-suppressing setter so a

@@ -21,6 +21,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -41,6 +42,8 @@ internal class ShizukuTerminal @Inject constructor(
         // F0x1d/LogFox#249 and F0x1d/LogFox#256
         private const val PERMISSION_TIMEOUT_MS = 30_000L
         private const val BIND_TIMEOUT_MS = 15_000L
+
+        private const val EXIT_CODE_FAILURE = 3
     }
 
     override val type = TerminalType.Shizuku
@@ -143,19 +146,46 @@ internal class ShizukuTerminal @Inject constructor(
     }
 
     override suspend fun executeNow(vararg command: String) = withContext(ioDispatcher) {
-        userService?.executeNow(command.joinToString(" ")) ?: TerminalResult(3)
+        val service = userService ?: return@withContext TerminalResult(EXIT_CODE_FAILURE)
+
+        // The binder can die at any moment (Shizuku restarted, user service update, app
+        // just granted READ_LOGS and the service is being recreated). An uncaught
+        // RemoteException here used to crash the app right after the first
+        // Shizuku authorization
+        runCatching {
+            service.executeNow(command.joinToString(" "))
+        }.getOrElse { throwable ->
+            Timber.w(throwable, "Shizuku user service failed, resetting")
+            resetUserService()
+
+            TerminalResult(EXIT_CODE_FAILURE)
+        }
     }
 
-    override fun execute(vararg command: String) = userService?.run {
-        val processId = execute(command.joinToString(" "))
+    override fun execute(vararg command: String) = runCatching {
+        userService?.run {
+            val processId = execute(command.joinToString(" "))
 
-        TerminalProcess(
-            output = AutoCloseInputStream(processOutput(processId) ?: return@run null),
-            error = AutoCloseInputStream(processError(processId) ?: return@run null),
-            input = AutoCloseOutputStream(processInput(processId) ?: return@run null),
-        ) {
-            destroyProcess(processId)
+            TerminalProcess(
+                output = AutoCloseInputStream(processOutput(processId) ?: return@run null),
+                error = AutoCloseInputStream(processError(processId) ?: return@run null),
+                input = AutoCloseOutputStream(processInput(processId) ?: return@run null),
+            ) {
+                destroyProcess(processId)
+            }
         }
+    }.getOrElse { throwable ->
+        Timber.w(throwable, "Shizuku user service failed to start a process, resetting")
+        resetUserService()
+
+        null
+    }
+
+    private fun resetUserService() {
+        userService = null
+
+        runCatching { Shizuku.unbindUserService(userServiceArgs, null, false) }
+        runCatching { Shizuku.unbindUserService(userServiceArgs, null, true) }
     }
 
     override suspend fun exit() {

@@ -22,7 +22,11 @@ internal sealed interface EditFilterCommand {
     data object ToggleTagRegex : EditFilterCommand
     data object ToggleContentRegex : EditFilterCommand
     data class FilterLevel(val which: Int, val filtering: Boolean) : EditFilterCommand
+    data object ClearLevels : EditFilterCommand
     data object Save : EditFilterCommand
+
+    // Emitted after the auto-save finished while closing the screen
+    data object SavedAndClose : EditFilterCommand
     data class Export(val uri: Uri) : EditFilterCommand
 
     // Close requested (back button/arrow/predictive back); reducer decides whether to confirm.

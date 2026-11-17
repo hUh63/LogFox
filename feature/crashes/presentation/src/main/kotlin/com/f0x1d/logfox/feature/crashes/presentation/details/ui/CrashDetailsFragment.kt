@@ -66,6 +66,12 @@ internal class CrashDetailsFragment :
         it?.let { uri -> send(CrashDetailsCommand.ExportCrashToZip(uri)) }
     }
 
+    private val mappingLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let { send(CrashDetailsCommand.ImportMapping(it)) }
+    }
+
     // no plain because android will append .txt itself
     private val exportCrashLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("text/*"),
@@ -95,6 +101,12 @@ internal class CrashDetailsFragment :
         toolbar.menu.apply {
             setClickListenerOn(R.id.wrap_lines_item) {
                 send(CrashDetailsCommand.WrapLinesClicked)
+            }
+            setClickListenerOn(R.id.import_mapping_item) {
+                send(CrashDetailsCommand.ImportMappingClicked)
+            }
+            setClickListenerOn(R.id.clear_mapping_item) {
+                send(CrashDetailsCommand.ClearMappingClicked)
             }
             setClickListenerOn(R.id.replace_item) {
                 send(CrashDetailsCommand.ShowReplaceDialog)
@@ -171,6 +183,7 @@ internal class CrashDetailsFragment :
             notificationsChannelsAvailable && state.useSeparateNotificationsChannelsForCrashes
 
         binding.toolbar.menu.findItem(R.id.wrap_lines_item).isChecked = state.wrapCrashLogLines
+        binding.toolbar.menu.findItem(R.id.clear_mapping_item).isVisible = state.mappingAvailable
 
         // Switch visibility here and not inside setupFor(): the preference is applied
         // by a separate command, and setupFor() is skipped while the crash is not
@@ -256,6 +269,16 @@ internal class CrashDetailsFragment :
 
             is CrashDetailsSideEffect.ShowReplace -> {
                 showReplaceDialog()
+            }
+
+            is CrashDetailsSideEffect.LaunchMappingPicker -> {
+                mappingLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
+            }
+
+            is CrashDetailsSideEffect.MappingImported -> {
+                snackbar(
+                    if (sideEffect.success) Strings.mapping_imported else Strings.mapping_import_failed,
+                )
             }
 
             is CrashDetailsSideEffect.CopyText -> {

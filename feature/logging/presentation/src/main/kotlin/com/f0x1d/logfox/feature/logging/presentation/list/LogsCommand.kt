@@ -74,5 +74,5 @@ internal sealed interface LogsCommand {
 
     data class LogcatSilentFound(val property: String?) : LogsCommand
 
-    data class ToggleLevelFilter(val level: LogLevel) : LogsCommand
+    data class SetLevelFilter(val levels: Set<LogLevel>) : LogsCommand
 }

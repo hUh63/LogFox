@@ -2,7 +2,9 @@ package com.f0x1d.logfox.feature.crashes.presentation.details
 
 import com.f0x1d.logfox.core.tea.EffectHandler
 import com.f0x1d.logfox.feature.crashes.api.domain.CheckAppDisabledUseCase
+import com.f0x1d.logfox.feature.crashes.api.domain.ClearMappingUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.DeleteCrashUseCase
+import com.f0x1d.logfox.feature.crashes.api.domain.ImportMappingUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.ExportCrashToFileUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.ExportCrashToZipUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.GetCrashAndLogByIdFlowUseCase
@@ -28,6 +30,8 @@ internal class CrashDetailsEffectHandler @Inject constructor(
     private val getWrapCrashLogLinesFlowUseCase: GetWrapCrashLogLinesFlowUseCase,
     private val setWrapCrashLogLinesUseCase: SetWrapCrashLogLinesUseCase,
     private val getUseSeparateNotificationsChannelsForCrashesFlowUseCase: GetUseSeparateNotificationsChannelsForCrashesFlowUseCase,
+    private val importMappingUseCase: ImportMappingUseCase,
+    private val clearMappingUseCase: ClearMappingUseCase,
     private val getLogsTextSizeFlowUseCase: GetLogsTextSizeFlowUseCase,
     private val setLogsTextSizeUseCase: SetLogsTextSizeUseCase,
     private val getLogFileExtensionUseCase: GetLogFileExtensionUseCase,
@@ -81,6 +85,18 @@ internal class CrashDetailsEffectHandler @Inject constructor(
                 onCommand(CrashDetailsCommand.ZipExportPickerReady(filename))
             }
 
+            is CrashDetailsSideEffect.ImportMapping -> {
+                val success = importMappingUseCase(effect.uri)
+
+                onCommand(CrashDetailsCommand.MappingImported(success))
+            }
+
+            is CrashDetailsSideEffect.ClearMappingStored -> {
+                clearMappingUseCase()
+
+                onCommand(CrashDetailsCommand.MappingCleared)
+            }
+
             is CrashDetailsSideEffect.ExportCrashToZip -> {
                 exportCrashToZipUseCase(crashId, effect.uri)
             }
@@ -106,6 +122,8 @@ internal class CrashDetailsEffectHandler @Inject constructor(
             is CrashDetailsSideEffect.ShareCrashLog -> Unit
             is CrashDetailsSideEffect.Close -> Unit
             is CrashDetailsSideEffect.ShowReplace -> Unit
+            is CrashDetailsSideEffect.MappingImported -> Unit
+            is CrashDetailsSideEffect.LaunchMappingPicker -> Unit
             is CrashDetailsSideEffect.LaunchFileExportPicker -> Unit
             is CrashDetailsSideEffect.LaunchZipExportPicker -> Unit
         }

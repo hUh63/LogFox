@@ -22,5 +22,6 @@ dependencies {
     api(projects.feature.crashes.api)
 
     implementation(libs.bundles.androidx)
+    implementation(libs.timber)
     implementation(libs.bundles.androidx.navigation)
 }

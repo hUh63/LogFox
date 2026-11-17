@@ -32,6 +32,26 @@ internal class EditFilterEffectHandler @Inject constructor(
                     }
             }
 
+            is EditFilterSideEffect.SaveAndClose -> {
+                handle(EditFilterSideEffect.SaveFilter(
+                    filter = effect.save.filter,
+                    name = effect.save.name,
+                    including = effect.save.including,
+                    enabled = effect.save.enabled,
+                    enabledLogLevels = effect.save.enabledLogLevels,
+                    uid = effect.save.uid,
+                    pid = effect.save.pid,
+                    tid = effect.save.tid,
+                    packageName = effect.save.packageName,
+                    tag = effect.save.tag,
+                    content = effect.save.content,
+                    tagRegex = effect.save.tagRegex,
+                    contentRegex = effect.save.contentRegex,
+                )) { cmd -> onCommand(cmd) }
+
+                onCommand(EditFilterCommand.SavedAndClose)
+            }
+
             is EditFilterSideEffect.SaveFilter -> {
                 if (effect.filter == null) {
                     createFilterUseCase(

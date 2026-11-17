@@ -15,6 +15,21 @@ internal class EditFilterReducer @Inject constructor(
     override fun reduce(
         state: EditFilterState,
         command: EditFilterCommand,
+    ): ReduceResult<EditFilterState, EditFilterSideEffect> {
+        val result = reduceInner(state, command)
+
+        // Auto-save: editing an existing filter persists it right away, there is no save
+        // button anymore (F0x1d/LogFox#261). New filters are created once, on close.
+        return if (command.isFieldEdit && result.state.filter != null) {
+            result.copy(sideEffects = result.sideEffects + result.state.toSaveFilterEffect())
+        } else {
+            result
+        }
+    }
+
+    private fun reduceInner(
+        state: EditFilterState,
+        command: EditFilterCommand,
     ): ReduceResult<EditFilterState, EditFilterSideEffect> = when (command) {
         is EditFilterCommand.Load -> {
             state.withSideEffects(EditFilterSideEffect.LoadFilter(args.filterId))
@@ -96,25 +111,22 @@ internal class EditFilterReducer @Inject constructor(
             state.copy(enabledLogLevels = newEnabledLogLevels, isDirty = true).noSideEffects()
         }
 
+        is EditFilterCommand.ClearLevels -> {
+            state.copy(
+                enabledLogLevels = MutableList(LogLevel.entries.size) { false },
+                isDirty = true,
+            ).noSideEffects()
+        }
+
         is EditFilterCommand.Save -> {
             state.withSideEffects(
-                EditFilterSideEffect.SaveFilter(
-                    filter = state.filter,
-                    name = state.name,
-                    including = state.including,
-                    enabled = state.enabled,
-                    enabledLogLevels = state.enabledLogLevels.toEnabledLogLevels(),
-                    uid = state.uid,
-                    pid = state.pid,
-                    tid = state.tid,
-                    packageName = state.packageName,
-                    tag = state.tag,
-                    content = state.content,
-                    tagRegex = state.tagRegex,
-                    contentRegex = state.contentRegex,
-                ),
+                state.toSaveFilterEffect(),
                 EditFilterSideEffect.Close,
             )
+        }
+
+        is EditFilterCommand.SavedAndClose -> {
+            state.withSideEffects(EditFilterSideEffect.Close)
         }
 
         is EditFilterCommand.Export -> {
@@ -131,13 +143,8 @@ internal class EditFilterReducer @Inject constructor(
         }
 
         is EditFilterCommand.AttemptClose -> {
-            state.withSideEffects(
-                if (state.isDirty) {
-                    EditFilterSideEffect.ConfirmDiscard
-                } else {
-                    EditFilterSideEffect.Close
-                },
-            )
+            // No save button anymore: leaving the screen persists the filter (F0x1d/LogFox#261)
+            state.withSideEffects(EditFilterSideEffect.SaveAndClose(state.toSaveFilterEffect()))
         }
 
         is EditFilterCommand.AttemptCloseConfirmed -> {
@@ -151,4 +158,40 @@ internal class EditFilterReducer @Inject constructor(
         ->
         if (value) LogLevel.entries[index] else null
     }
+
+    private fun EditFilterState.toSaveFilterEffect() = EditFilterSideEffect.SaveFilter(
+        filter = filter,
+        name = name,
+        including = including,
+        enabled = enabled,
+        enabledLogLevels = enabledLogLevels.toEnabledLogLevels(),
+        uid = uid,
+        pid = pid,
+        tid = tid,
+        packageName = packageName,
+        tag = tag,
+        content = content,
+        tagRegex = tagRegex,
+        contentRegex = contentRegex,
+    )
+
+    private val EditFilterCommand.isFieldEdit: Boolean
+        get() = when (this) {
+            is EditFilterCommand.UpdateName,
+            is EditFilterCommand.UpdateUid,
+            is EditFilterCommand.UpdatePid,
+            is EditFilterCommand.UpdateTid,
+            is EditFilterCommand.UpdatePackageName,
+            is EditFilterCommand.UpdateTag,
+            is EditFilterCommand.UpdateContent,
+            is EditFilterCommand.ToggleIncluding,
+            is EditFilterCommand.ToggleEnabled,
+            is EditFilterCommand.ToggleTagRegex,
+            is EditFilterCommand.ToggleContentRegex,
+            is EditFilterCommand.FilterLevel,
+            is EditFilterCommand.ClearLevels,
+            -> true
+
+            else -> false
+        }
 }

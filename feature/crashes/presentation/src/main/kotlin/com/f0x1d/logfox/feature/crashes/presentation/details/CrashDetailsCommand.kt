@@ -55,4 +55,14 @@ internal sealed interface CrashDetailsCommand {
     data class ApplyReplace(val find: String, val replaceWith: String) : CrashDetailsCommand
 
     data object ClearReplace : CrashDetailsCommand
+
+    data object ImportMappingClicked : CrashDetailsCommand
+
+    data class ImportMapping(val uri: Uri) : CrashDetailsCommand
+
+    data class MappingImported(val success: Boolean) : CrashDetailsCommand
+
+    data object ClearMappingClicked : CrashDetailsCommand
+
+    data object MappingCleared : CrashDetailsCommand
 }

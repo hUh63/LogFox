@@ -10,6 +10,9 @@
     <string name="text_larger">Larger text</string>
     <string name="regex_tag">Match tag as regular expression</string>
     <string name="regex_content">Match content as regular expression</string>
+    <string name="level_filter">Levels</string>
+    <string name="level_filter_all">Showing all levels</string>
+    <string name="level_filter_active">Showing levels: %1$s</string>
     <string name="replace">Replace</string>
     <string name="replace_find">Text to replace</string>
     <string name="replace_with">Replace with (empty to remove)</string>
@@ -222,4 +225,11 @@
     <string name="port_value">Port: %s</string>
     <string name="mcp_server_warning">The LAN link is reachable by any device on your network. Keep the server enabled only on trusted networks</string>
     <string name="preference_copied">\"%1$s\" copied to clipboard.</string>
+    <string name="filter_scope">Fields to match</string>
+    <string name="filter_auto_save_hint">Changes are saved automatically. Empty fields match anything.</string>
+    <string name="select_app">Pick an app</string>
+    <string name="import_mapping">Retrace: import mapping.txt</string>
+    <string name="clear_mapping">Retrace: forget mapping</string>
+    <string name="mapping_imported">Mapping imported, stack traces are retraced</string>
+    <string name="mapping_import_failed">Could not read the mapping file</string>
 </resources>

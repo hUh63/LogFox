@@ -1,6 +1,9 @@
 package com.f0x1d.logfox.feature.crashes.impl.di
 
 import com.f0x1d.logfox.feature.crashes.api.domain.ClearAllCrashesUseCase
+import com.f0x1d.logfox.feature.crashes.api.domain.ClearMappingUseCase
+import com.f0x1d.logfox.feature.crashes.api.domain.ImportMappingUseCase
+import com.f0x1d.logfox.feature.crashes.api.domain.IsMappingAvailableUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.DeleteAllCrashesByPackageNameUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.DeleteCrashUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.ExportCrashToFileUseCase
@@ -12,6 +15,9 @@ import com.f0x1d.logfox.feature.crashes.api.domain.GetCrashesSearchQueryFlowUseC
 import com.f0x1d.logfox.feature.crashes.api.domain.ProcessLogLineCrashesUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.UpdateCrashesSearchQueryUseCase
 import com.f0x1d.logfox.feature.crashes.impl.domain.ClearAllCrashesUseCaseImpl
+import com.f0x1d.logfox.feature.crashes.impl.domain.ClearMappingUseCaseImpl
+import com.f0x1d.logfox.feature.crashes.impl.domain.ImportMappingUseCaseImpl
+import com.f0x1d.logfox.feature.crashes.impl.domain.IsMappingAvailableUseCaseImpl
 import com.f0x1d.logfox.feature.crashes.impl.domain.DeleteAllCrashesByPackageNameUseCaseImpl
 import com.f0x1d.logfox.feature.crashes.impl.domain.DeleteCrashUseCaseImpl
 import com.f0x1d.logfox.feature.crashes.impl.domain.ExportCrashToFileUseCaseImpl
@@ -70,6 +76,15 @@ internal interface CrashesUseCaseModule {
     fun bindExportCrashToFileUseCase(
         impl: ExportCrashToFileUseCaseImpl,
     ): ExportCrashToFileUseCase
+
+    @Binds
+    fun bindIsMappingAvailableUseCase(impl: IsMappingAvailableUseCaseImpl): IsMappingAvailableUseCase
+
+    @Binds
+    fun bindImportMappingUseCase(impl: ImportMappingUseCaseImpl): ImportMappingUseCase
+
+    @Binds
+    fun bindClearMappingUseCase(impl: ClearMappingUseCaseImpl): ClearMappingUseCase
 
     @Binds
     fun bindExportCrashToZipUseCase(

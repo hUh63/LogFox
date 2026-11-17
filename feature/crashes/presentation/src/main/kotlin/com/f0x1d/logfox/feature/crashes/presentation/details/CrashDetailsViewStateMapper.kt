@@ -11,6 +11,7 @@ internal class CrashDetailsViewStateMapper @Inject constructor() : ViewStateMapp
         wrapCrashLogLines = state.wrapCrashLogLines,
         useSeparateNotificationsChannelsForCrashes = state.useSeparateNotificationsChannelsForCrashes,
         textSize = state.textSize,
+        mappingAvailable = state.mappingAvailable,
         searchQuery = state.searchQuery,
         searchMatchRanges = state.searchMatchRanges,
     )

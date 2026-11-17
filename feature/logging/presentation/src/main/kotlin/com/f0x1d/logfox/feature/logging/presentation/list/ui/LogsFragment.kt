@@ -112,9 +112,24 @@ internal class LogsFragment :
             }
         }
 
-        levelButtons.forEach { (button, level) ->
+        levelButtons.forEach { (button, _) ->
             button.setOnClickListener {
-                send(LogsCommand.ToggleLevelFilter(level))
+                // The button is the source of truth here: flip it, then derive the whole
+                // set from the buttons. Deriving it in the fragment avoids any feedback
+                // loop with render() and makes the tap leave a visible trace
+                button.isChecked = !button.isChecked
+
+                val levels = levelButtons.filter { it.first.isChecked }.map { it.second }.toSet()
+
+                send(LogsCommand.SetLevelFilter(levels))
+
+                snackbar(
+                    if (levels.isEmpty()) {
+                        getString(Strings.level_filter_all)
+                    } else {
+                        getString(Strings.level_filter_active, levels.joinToString(" ") { it.letter })
+                    },
+                )
             }
         }
 
@@ -197,6 +212,7 @@ internal class LogsFragment :
         binding.processQueryAndFilters(
             query = state.query,
             filters = state.filters,
+            levels = state.levelFilters,
         )
         binding.processSelectedItems(
             selecting = state.selecting,
@@ -205,7 +221,9 @@ internal class LogsFragment :
         binding.processPaused(paused = state.paused)
 
         levelButtons.forEach { (button, level) ->
-            button.isChecked = level in state.levelFilters
+            val checked = level in state.levelFilters
+
+            if (button.isChecked != checked) button.isChecked = checked
         }
 
         if (state.logsChanged) {
@@ -280,8 +298,17 @@ internal class LogsFragment :
     private fun FragmentLogsBinding.processQueryAndFilters(
         query: String?,
         filters: List<UserFilter>,
+        levels: Set<LogLevel>,
     ) {
         val subtitle = buildString {
+            if (levels.isNotEmpty()) {
+                append(getString(Strings.level_filter_active, levels.joinToString(" ") { it.letter }))
+            }
+
+            if (levels.isNotEmpty() && (query != null || filters.isNotEmpty())) {
+                append(", ")
+            }
+
             if (query != null) {
                 append(query)
 

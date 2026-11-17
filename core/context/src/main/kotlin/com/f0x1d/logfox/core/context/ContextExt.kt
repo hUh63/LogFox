@@ -28,10 +28,16 @@ val Context.notificationManager get() = getSystemService<NotificationManager>()!
 val Context.activityManager get() = getSystemService<ActivityManager>()!!
 
 fun Context.hardRestartApp() {
-    for (task in activityManager.appTasks) task.finishAndRemoveTask()
+    // Never crash while restarting: this runs right after the first Shizuku
+    // authorization, where any failure looks like "the app closed itself"
+    runCatching {
+        for (task in activityManager.appTasks) task.finishAndRemoveTask()
+    }
 
-    val intent = packageManager.getLaunchIntentForPackage(packageName)
-    startActivity(intent)
+    runCatching {
+        packageManager.getLaunchIntentForPackage(packageName)?.let(::startActivity)
+    }
+
     exitProcess(0)
 }
 

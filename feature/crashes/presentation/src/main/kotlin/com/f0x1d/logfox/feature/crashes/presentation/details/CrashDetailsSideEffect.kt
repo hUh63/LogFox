@@ -9,6 +9,14 @@ internal sealed interface CrashDetailsSideEffect {
 
     data object ShowReplace : CrashDetailsSideEffect
 
+    data object LaunchMappingPicker : CrashDetailsSideEffect
+
+    data class ImportMapping(val uri: Uri) : CrashDetailsSideEffect
+
+    data object ClearMappingStored : CrashDetailsSideEffect
+
+    data class MappingImported(val success: Boolean) : CrashDetailsSideEffect
+
     data object ObservePreferences : CrashDetailsSideEffect
 
     data class SetWrapCrashLogLines(val wrap: Boolean) : CrashDetailsSideEffect

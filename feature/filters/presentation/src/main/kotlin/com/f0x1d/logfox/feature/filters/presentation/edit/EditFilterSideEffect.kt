@@ -22,6 +22,7 @@ internal sealed interface EditFilterSideEffect {
         val tagRegex: Boolean,
         val contentRegex: Boolean,
     ) : EditFilterSideEffect
+    data class SaveAndClose(val save: SaveFilter) : EditFilterSideEffect
     data class ExportFilter(val uri: Uri, val filter: UserFilter?) : EditFilterSideEffect
 
     // UI side effects - handled by Fragment
