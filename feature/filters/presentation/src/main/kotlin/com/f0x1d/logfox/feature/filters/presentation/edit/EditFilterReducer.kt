@@ -39,6 +39,8 @@ internal class EditFilterReducer @Inject constructor(
                 packageName = command.filter.packageName,
                 tag = command.filter.tag,
                 content = command.filter.content,
+                tagRegex = command.filter.tagRegex,
+                contentRegex = command.filter.contentRegex,
                 isDirty = false,
             ).noSideEffects()
         }
@@ -79,6 +81,14 @@ internal class EditFilterReducer @Inject constructor(
             state.copy(enabled = !state.enabled, isDirty = true).noSideEffects()
         }
 
+        is EditFilterCommand.ToggleTagRegex -> {
+            state.copy(tagRegex = !state.tagRegex, isDirty = true).noSideEffects()
+        }
+
+        is EditFilterCommand.ToggleContentRegex -> {
+            state.copy(contentRegex = !state.contentRegex, isDirty = true).noSideEffects()
+        }
+
         is EditFilterCommand.FilterLevel -> {
             val newEnabledLogLevels = state.enabledLogLevels.toMutableList().apply {
                 this[command.which] = command.filtering
@@ -100,6 +110,8 @@ internal class EditFilterReducer @Inject constructor(
                     packageName = state.packageName,
                     tag = state.tag,
                     content = state.content,
+                    tagRegex = state.tagRegex,
+                    contentRegex = state.contentRegex,
                 ),
                 EditFilterSideEffect.Close,
             )

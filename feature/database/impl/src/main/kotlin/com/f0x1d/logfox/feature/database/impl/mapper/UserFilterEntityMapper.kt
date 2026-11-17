@@ -14,6 +14,8 @@ internal fun UserFilterRoomEntity.toData() = UserFilterEntity(
     packageName = packageName,
     tag = tag,
     content = content,
+    tagRegex = tagRegex,
+    contentRegex = contentRegex,
     enabled = enabled,
 )
 
@@ -28,5 +30,7 @@ internal fun UserFilterEntity.toRoom() = UserFilterRoomEntity(
     packageName = packageName,
     tag = tag,
     content = content,
+    tagRegex = tagRegex,
+    contentRegex = contentRegex,
     enabled = enabled,
 )

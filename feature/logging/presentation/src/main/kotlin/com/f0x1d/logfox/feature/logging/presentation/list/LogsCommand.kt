@@ -69,4 +69,6 @@ internal sealed interface LogsCommand {
     data object RestartLogging : LogsCommand
 
     data object KillService : LogsCommand
+
+    data class LogcatSilentFound(val property: String?) : LogsCommand
 }

@@ -11,9 +11,14 @@ internal sealed interface CrashDetailsCommand {
     data class PreferencesUpdated(
         val wrapCrashLogLines: Boolean,
         val useSeparateNotificationsChannelsForCrashes: Boolean,
+        val textSize: Int,
     ) : CrashDetailsCommand
 
     data object WrapLinesClicked : CrashDetailsCommand
+
+    data object IncreaseTextSize : CrashDetailsCommand
+
+    data object DecreaseTextSize : CrashDetailsCommand
 
     data object OpenAppInfoClicked : CrashDetailsCommand
 

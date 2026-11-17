@@ -14,6 +14,8 @@ internal fun UserFilterEntity.toDomainModel() = UserFilter(
     packageName = packageName,
     tag = tag,
     content = content,
+    tagRegex = tagRegex,
+    contentRegex = contentRegex,
     enabled = enabled,
 )
 
@@ -28,5 +30,7 @@ internal fun UserFilter.toEntity() = UserFilterEntity(
     packageName = packageName,
     tag = tag,
     content = content,
+    tagRegex = tagRegex,
+    contentRegex = contentRegex,
     enabled = enabled,
 )

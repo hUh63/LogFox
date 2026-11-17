@@ -1,6 +1,8 @@
 package com.f0x1d.logfox.feature.logging.impl.di
 
 import com.f0x1d.logfox.feature.logging.api.domain.AddLogLineUseCase
+import com.f0x1d.logfox.feature.logging.api.domain.BroadcastLogEventUseCase
+import com.f0x1d.logfox.feature.logging.api.domain.GetLogcatSilentTagUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.ClearLogsUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.ExportLogsToUriUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.FormatLogLineUseCase
@@ -23,7 +25,9 @@ import com.f0x1d.logfox.feature.logging.impl.domain.AddLogLineUseCaseImpl
 import com.f0x1d.logfox.feature.logging.impl.domain.ClearLogsUseCaseImpl
 import com.f0x1d.logfox.feature.logging.impl.domain.ExportLogsToUriUseCaseImpl
 import com.f0x1d.logfox.feature.logging.impl.domain.FormatLogLineUseCaseImpl
+import com.f0x1d.logfox.feature.logging.impl.domain.BroadcastLogEventUseCaseImpl
 import com.f0x1d.logfox.feature.logging.impl.domain.GetCaseSensitiveFlowUseCaseImpl
+import com.f0x1d.logfox.feature.logging.impl.domain.GetLogcatSilentTagUseCaseImpl
 import com.f0x1d.logfox.feature.logging.impl.domain.GetCaseSensitiveUseCaseImpl
 import com.f0x1d.logfox.feature.logging.impl.domain.GetLastLogUseCaseImpl
 import com.f0x1d.logfox.feature.logging.impl.domain.GetLogsFlowUseCaseImpl
@@ -49,6 +53,12 @@ internal interface LoggingUseCaseModule {
 
     @Binds
     fun bindGetLogsFlowUseCase(impl: GetLogsFlowUseCaseImpl): GetLogsFlowUseCase
+
+    @Binds
+    fun bindBroadcastLogEventUseCase(impl: BroadcastLogEventUseCaseImpl): BroadcastLogEventUseCase
+
+    @Binds
+    fun bindGetLogcatSilentTagUseCase(impl: GetLogcatSilentTagUseCaseImpl): GetLogcatSilentTagUseCase
 
     @Binds
     fun bindGetQueryFlowUseCase(impl: GetQueryFlowUseCaseImpl): GetQueryFlowUseCase

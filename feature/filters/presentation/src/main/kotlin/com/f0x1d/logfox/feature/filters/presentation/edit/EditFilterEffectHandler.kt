@@ -45,6 +45,8 @@ internal class EditFilterEffectHandler @Inject constructor(
                         packageName = effect.packageName,
                         tag = effect.tag,
                         content = effect.content,
+                        tagRegex = effect.tagRegex,
+                        contentRegex = effect.contentRegex,
                     )
                 } else {
                     updateFilterUseCase(
@@ -59,6 +61,8 @@ internal class EditFilterEffectHandler @Inject constructor(
                         packageName = effect.packageName,
                         tag = effect.tag,
                         content = effect.content,
+                        tagRegex = effect.tagRegex,
+                        contentRegex = effect.contentRegex,
                     )
                 }
             }

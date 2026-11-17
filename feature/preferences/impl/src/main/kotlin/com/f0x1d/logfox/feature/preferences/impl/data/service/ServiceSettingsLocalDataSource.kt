@@ -9,4 +9,5 @@ internal interface ServiceSettingsLocalDataSource {
     fun includeAppInfoInExports(): Preference<Boolean>
     fun stopLoggingOnBackExit(): Preference<Boolean>
     fun exportLogsAsTxt(): Preference<Boolean>
+    fun broadcastLogEvents(): Preference<Boolean>
 }

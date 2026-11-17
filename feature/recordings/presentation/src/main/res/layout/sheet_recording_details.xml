@@ -33,13 +33,28 @@
         app:layout_constraintTop_toBottomOf="@id/time_text"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/actions_card">
+        app:layout_constraintBottom_toTopOf="@id/view_button">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/title"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
     </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.button.MaterialButton
+        style="?attr/materialButtonOutlinedStyle"
+        android:id="@+id/view_button"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/view"
+        app:icon="@drawable/ic_dialog_text_fields"
+        android:layout_marginTop="10dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintTop_toBottomOf="@id/title_layout"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/actions_card" />
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/actions_card"
@@ -54,7 +69,7 @@
         android:layout_marginStart="10dp"
         android:layout_marginEnd="10dp"
         android:layout_marginBottom="10dp"
-        app:layout_constraintTop_toBottomOf="@id/title_layout"
+        app:layout_constraintTop_toBottomOf="@id/view_button"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">

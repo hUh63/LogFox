@@ -5,6 +5,7 @@ import com.f0x1d.logfox.core.di.DefaultDispatcher
 import com.f0x1d.logfox.core.tea.EffectHandler
 import com.f0x1d.logfox.feature.crashes.api.domain.ProcessLogLineCrashesUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.AddLogLineUseCase
+import com.f0x1d.logfox.feature.logging.api.domain.BroadcastLogEventUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.ClearLogsUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetLastLogUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetLogsSnapshotUseCase
@@ -48,6 +49,7 @@ internal class LoggingServiceEffectHandler @Inject constructor(
     private val exitTerminalUseCase: ExitTerminalUseCase,
     private val getLogsUpdateIntervalUseCase: GetLogsUpdateIntervalUseCase,
     private val shouldFallbackToDefaultTerminalUseCase: ShouldFallbackToDefaultTerminalUseCase,
+    private val broadcastLogEventUseCase: BroadcastLogEventUseCase,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : EffectHandler<LoggingServiceSideEffect, LoggingServiceCommand> {
 
@@ -93,6 +95,7 @@ internal class LoggingServiceEffectHandler @Inject constructor(
                             addLogLineUseCase(logLine)
                             processLogLineCrashesUseCase(logLine)
                             processLogLineRecordingUseCase(logLine)
+                            broadcastLogEventUseCase(logLine)
                         }
                     }
 

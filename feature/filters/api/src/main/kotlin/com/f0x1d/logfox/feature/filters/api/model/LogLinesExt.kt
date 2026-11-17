@@ -54,14 +54,22 @@ private fun UserFilter.lineSuits(logLine: LogLine) =
     pid.equalsOrTrueIfNull(logLine.pid) &&
     tid.equalsOrTrueIfNull(logLine.tid) &&
     packageName.equalsOrTrueIfNull(logLine.packageName ?: "") &&
-    tag.equalsOrTrueIfNull(logLine.tag) &&
-    content.containsOrTrueIfNull(logLine.content)
+    tag.matchesOrTrueIfNull(logLine.tag, tagRegex) &&
+    content.matchesOrTrueIfNull(logLine.content, contentRegex)
 
 private fun String?.equalsOrTrueIfNull(other: String) = if (this == null) true else other == this
-private fun String?.containsOrTrueIfNull(other: String) = if (this ==
-    null
-) {
-    true
-} else {
-    other.contains(this)
+
+/**
+ * Exact value matches, unless the "regex" switch of the filter is on: then the value is
+ * treated as a regular expression and matched against the whole log tag/content
+ * (F0x1d/LogFox#240). An invalid pattern matches nothing instead of crashing/ignoring the filter.
+ */
+private fun String?.matchesOrTrueIfNull(other: String, regex: Boolean): Boolean {
+    if (this == null) return true
+
+    if (!regex) return other.contains(this)
+
+    return runCatching {
+        Regex(this).containsMatchIn(other)
+    }.getOrDefault(false)
 }

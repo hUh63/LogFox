@@ -19,6 +19,8 @@ internal class CreateFilterUseCaseImpl @Inject constructor(
         packageName: String?,
         tag: String?,
         content: String?,
+        tagRegex: Boolean,
+        contentRegex: Boolean,
     ) = filtersRepository.create(
         name = name,
         including = including,
@@ -30,5 +32,7 @@ internal class CreateFilterUseCaseImpl @Inject constructor(
         packageName = packageName,
         tag = tag,
         content = content,
+        tagRegex = tagRegex,
+        contentRegex = contentRegex,
     )
 }

@@ -36,6 +36,8 @@ internal class FiltersRepositoryImpl @Inject constructor(
         packageName: String?,
         tag: String?,
         content: String?,
+        tagRegex: Boolean,
+        contentRegex: Boolean,
     ) = createAll(
         listOf(
             UserFilter(
@@ -49,6 +51,8 @@ internal class FiltersRepositoryImpl @Inject constructor(
                 packageName = packageName?.nullIfBlank(),
                 tag = tag?.nullIfBlank(),
                 content = content?.nullIfBlank(),
+                tagRegex = tagRegex,
+                contentRegex = contentRegex,
             ),
         ),
     )
@@ -73,6 +77,8 @@ internal class FiltersRepositoryImpl @Inject constructor(
         packageName: String?,
         tag: String?,
         content: String?,
+        tagRegex: Boolean,
+        contentRegex: Boolean,
     ) = update {
         userFilter.copy(
             name = name?.nullIfBlank(),
@@ -85,6 +91,8 @@ internal class FiltersRepositoryImpl @Inject constructor(
             packageName = packageName?.nullIfBlank(),
             tag = tag?.nullIfBlank(),
             content = content?.nullIfBlank(),
+            tagRegex = tagRegex,
+            contentRegex = contentRegex,
         )
     }
 

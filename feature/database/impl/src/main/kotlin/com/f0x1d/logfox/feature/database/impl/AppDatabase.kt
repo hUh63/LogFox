@@ -26,7 +26,7 @@ import com.f0x1d.logfox.feature.database.impl.entity.UserFilterRoomEntity
         UserFilterRoomEntity::class,
         DisabledAppRoomEntity::class,
     ],
-    version = 18,
+    version = 19,
     autoMigrations = [
         AutoMigration(
             from = 12,
@@ -52,6 +52,10 @@ import com.f0x1d.logfox.feature.database.impl.entity.UserFilterRoomEntity
         AutoMigration(
             from = 17,
             to = 18,
+        ),
+        AutoMigration(
+            from = 18,
+            to = 19,
         ),
     ],
 )

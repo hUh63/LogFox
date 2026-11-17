@@ -19,6 +19,8 @@ internal sealed interface EditFilterCommand {
     // Actions
     data object ToggleIncluding : EditFilterCommand
     data object ToggleEnabled : EditFilterCommand
+    data object ToggleTagRegex : EditFilterCommand
+    data object ToggleContentRegex : EditFilterCommand
     data class FilterLevel(val which: Int, val filtering: Boolean) : EditFilterCommand
     data object Save : EditFilterCommand
     data class Export(val uri: Uri) : EditFilterCommand

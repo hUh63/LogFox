@@ -233,6 +233,10 @@ internal class LogsFragment :
                 )
             }
 
+            is LogsSideEffect.LogcatSilentWarning -> {
+                snackbar(getString(Strings.logcat_silent_warning, sideEffect.property))
+            }
+
             is LogsSideEffect.CopyText -> {
                 requireContext().copyText(sideEffect.text)
                 snackbar(Strings.text_copied)
@@ -381,5 +385,9 @@ internal class LogsFragment :
 
     private fun snackbar(messageRes: Int) {
         Snackbar.make(binding.root, messageRes, Snackbar.LENGTH_SHORT).show()
+    }
+
+    private fun snackbar(messageRes: Int, vararg args: Any) {
+        Snackbar.make(binding.root, getString(messageRes, *args), Snackbar.LENGTH_LONG).show()
     }
 }

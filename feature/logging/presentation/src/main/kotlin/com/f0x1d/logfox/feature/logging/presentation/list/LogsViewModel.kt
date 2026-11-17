@@ -45,6 +45,7 @@ internal class LogsViewModel @Inject constructor(
     initialSideEffects = listOf(
         LogsSideEffect.LoadLogs,
         LogsSideEffect.ObservePreferences,
+        LogsSideEffect.CheckLogcatSilent,
     ),
     viewStateMappingDispatcher = defaultDispatcher,
 )

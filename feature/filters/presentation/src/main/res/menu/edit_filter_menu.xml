@@ -3,6 +3,18 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/tag_regex_item"
+        android:title="@string/regex_tag"
+        android:checkable="true"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/content_regex_item"
+        android:title="@string/regex_content"
+        android:checkable="true"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/export_item"
         android:title="@string/export"
         android:icon="@drawable/ic_export"

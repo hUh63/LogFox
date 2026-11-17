@@ -29,7 +29,20 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
         is CrashDetailsCommand.PreferencesUpdated -> state.copy(
             wrapCrashLogLines = command.wrapCrashLogLines,
             useSeparateNotificationsChannelsForCrashes = command.useSeparateNotificationsChannelsForCrashes,
+            textSize = command.textSize,
         ).noSideEffects()
+
+        is CrashDetailsCommand.IncreaseTextSize -> state.withSideEffects(
+            CrashDetailsSideEffect.SetTextSize(
+                size = (state.textSize + TEXT_SIZE_STEP).coerceAtMost(TEXT_SIZE_MAX),
+            ),
+        )
+
+        is CrashDetailsCommand.DecreaseTextSize -> state.withSideEffects(
+            CrashDetailsSideEffect.SetTextSize(
+                size = (state.textSize - TEXT_SIZE_STEP).coerceAtLeast(TEXT_SIZE_MIN),
+            ),
+        )
 
         is CrashDetailsCommand.OpenAppInfoClicked -> {
             val appCrash = state.crash
@@ -189,5 +202,11 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
             }
             state.copy(searchQuery = query, searchMatchRanges = ranges).noSideEffects()
         }
+    }
+
+    private companion object {
+        const val TEXT_SIZE_STEP = 2
+        const val TEXT_SIZE_MIN = 8
+        const val TEXT_SIZE_MAX = 30
     }
 }

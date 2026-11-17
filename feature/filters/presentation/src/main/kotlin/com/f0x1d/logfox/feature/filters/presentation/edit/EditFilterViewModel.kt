@@ -51,6 +51,8 @@ private fun EditFilterArgs.toInitialState(): EditFilterState {
         packageName = packageName,
         tag = tag,
         content = content,
+        tagRegex = false,
+        contentRegex = false,
         // Fields prefilled from a log line count as unsaved changes, so backing out prompts to
         // discard; a blank new filter starts clean. An existing filter loads via FilterLoaded,
         // which resets isDirty to false.

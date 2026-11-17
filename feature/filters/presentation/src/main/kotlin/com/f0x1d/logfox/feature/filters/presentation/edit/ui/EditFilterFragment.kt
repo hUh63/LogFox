@@ -97,6 +97,12 @@ internal class EditFilterFragment :
             setClickListenerOn(R.id.export_item) {
                 exportFilterLauncher.launch("filter.json")
             }
+            setClickListenerOn(R.id.tag_regex_item) {
+                send(EditFilterCommand.ToggleTagRegex)
+            }
+            setClickListenerOn(R.id.content_regex_item) {
+                send(EditFilterCommand.ToggleContentRegex)
+            }
         }
         toolbar.setupClickableTitle(
             background = com.f0x1d.logfox.core.ui.view.R.drawable.bg_toolbar_title_clickable,
@@ -153,6 +159,8 @@ internal class EditFilterFragment :
             setTextIfDifferent(contentText, state.content.orEmpty(), setContentText)
 
             toolbar.menu.findItem(R.id.export_item).isVisible = state.filter != null
+            toolbar.menu.findItem(R.id.tag_regex_item).isChecked = state.tagRegex
+            toolbar.menu.findItem(R.id.content_regex_item).isChecked = state.contentRegex
         }
     }
 

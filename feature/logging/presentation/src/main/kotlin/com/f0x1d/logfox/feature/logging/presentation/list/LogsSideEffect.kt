@@ -56,4 +56,9 @@ internal sealed interface LogsSideEffect {
     data object RestartLogging : LogsSideEffect
 
     data object KillService : LogsSideEffect
+
+    data object CheckLogcatSilent : LogsSideEffect
+
+    // UI side effects
+    data class LogcatSilentWarning(val property: String) : LogsSideEffect
 }

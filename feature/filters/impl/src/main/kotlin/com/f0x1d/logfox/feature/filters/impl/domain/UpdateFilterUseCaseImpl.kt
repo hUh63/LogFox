@@ -21,6 +21,8 @@ internal class UpdateFilterUseCaseImpl @Inject constructor(
         packageName: String?,
         tag: String?,
         content: String?,
+        tagRegex: Boolean,
+        contentRegex: Boolean,
     ) = filtersRepository.update(
         userFilter = userFilter,
         name = name,
@@ -33,5 +35,7 @@ internal class UpdateFilterUseCaseImpl @Inject constructor(
         packageName = packageName,
         tag = tag,
         content = content,
+        tagRegex = tagRegex,
+        contentRegex = contentRegex,
     )
 }

@@ -16,6 +16,18 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/text_smaller_item"
+        android:icon="@drawable/ic_text_smaller"
+        android:title="@string/text_smaller"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/text_larger_item"
+        android:icon="@drawable/ic_text_larger"
+        android:title="@string/text_larger"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/info_item"
         android:icon="@drawable/ic_info"
         android:title="@string/information"

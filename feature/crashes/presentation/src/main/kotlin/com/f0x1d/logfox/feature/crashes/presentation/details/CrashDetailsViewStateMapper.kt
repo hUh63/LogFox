@@ -10,6 +10,7 @@ internal class CrashDetailsViewStateMapper @Inject constructor() : ViewStateMapp
         blacklisted = state.blacklisted,
         wrapCrashLogLines = state.wrapCrashLogLines,
         useSeparateNotificationsChannelsForCrashes = state.useSeparateNotificationsChannelsForCrashes,
+        textSize = state.textSize,
         searchQuery = state.searchQuery,
         searchMatchRanges = state.searchMatchRanges,
     )

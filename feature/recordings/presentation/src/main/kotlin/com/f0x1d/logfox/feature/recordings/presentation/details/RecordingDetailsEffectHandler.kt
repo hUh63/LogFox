@@ -54,6 +54,12 @@ internal class RecordingDetailsEffectHandler @Inject constructor(
                 onCommand(RecordingDetailsCommand.ZipExportPickerReady(filename))
             }
 
+            is RecordingDetailsSideEffect.PrepareView -> {
+                val recording = getRecordingByIdFlowUseCase(recordingId).firstOrNull()
+                    ?: return
+                onCommand(RecordingDetailsCommand.ViewFileReady(recording.file))
+            }
+
             is RecordingDetailsSideEffect.PrepareShare -> {
                 val recording = getRecordingByIdFlowUseCase(recordingId).firstOrNull()
                     ?: return
@@ -84,6 +90,7 @@ internal class RecordingDetailsEffectHandler @Inject constructor(
             is RecordingDetailsSideEffect.LaunchFileExportPicker -> Unit
             is RecordingDetailsSideEffect.LaunchZipExportPicker -> Unit
             is RecordingDetailsSideEffect.ShareFile -> Unit
+            is RecordingDetailsSideEffect.ViewFile -> Unit
             is RecordingDetailsSideEffect.ExportFailed -> Unit
         }
     }

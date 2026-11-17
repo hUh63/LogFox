@@ -19,6 +19,8 @@ interface FiltersRepository {
         packageName: String?,
         tag: String?,
         content: String?,
+        tagRegex: Boolean = false,
+        contentRegex: Boolean = false,
     )
 
     suspend fun createAll(userFilters: List<UserFilter>)
@@ -37,6 +39,8 @@ interface FiltersRepository {
         packageName: String?,
         tag: String?,
         content: String?,
+        tagRegex: Boolean = false,
+        contentRegex: Boolean = false,
     )
 
     fun getAllAsFlow(): Flow<List<UserFilter>>

@@ -11,6 +11,8 @@ internal sealed interface CrashDetailsSideEffect {
 
     data class SetWrapCrashLogLines(val wrap: Boolean) : CrashDetailsSideEffect
 
+    data class SetTextSize(val size: Int) : CrashDetailsSideEffect
+
     data class ExportCrashToZip(val uri: Uri) : CrashDetailsSideEffect
 
     data class ExportCrashToFile(val uri: Uri) : CrashDetailsSideEffect

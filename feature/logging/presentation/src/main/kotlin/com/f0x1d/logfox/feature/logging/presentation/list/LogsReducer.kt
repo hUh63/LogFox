@@ -217,6 +217,16 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
             state.withSideEffects(LogsSideEffect.NavigateToExtendedCopy)
         }
 
+        is LogsCommand.LogcatSilentFound -> {
+            val property = command.property
+
+            if (property == null) {
+                state.noSideEffects()
+            } else {
+                state.withSideEffects(LogsSideEffect.LogcatSilentWarning(property))
+            }
+        }
+
         is LogsCommand.ClearLogs -> {
             state.copy(
                 logs = emptyList(),

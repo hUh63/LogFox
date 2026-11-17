@@ -6,6 +6,7 @@ import com.f0x1d.logfox.feature.filters.api.domain.GetAllEnabledFiltersFlowUseCa
 import com.f0x1d.logfox.feature.logging.api.domain.ExportLogsToUriUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.FormatLogLineUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetCaseSensitiveFlowUseCase
+import com.f0x1d.logfox.feature.logging.api.domain.GetLogcatSilentTagUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetLogsFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetQueryFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetShowLogValuesFlowUseCase
@@ -21,6 +22,7 @@ import javax.inject.Inject
 
 internal class LogsEffectHandler @Inject constructor(
     private val getLogsFlowUseCase: GetLogsFlowUseCase,
+    private val getLogcatSilentTagUseCase: GetLogcatSilentTagUseCase,
     private val getQueryFlowUseCase: GetQueryFlowUseCase,
     private val getCaseSensitiveFlowUseCase: GetCaseSensitiveFlowUseCase,
     private val getAllEnabledFiltersFlowUseCase: GetAllEnabledFiltersFlowUseCase,
@@ -39,6 +41,10 @@ internal class LogsEffectHandler @Inject constructor(
 
     override suspend fun handle(effect: LogsSideEffect, onCommand: suspend (LogsCommand) -> Unit) {
         when (effect) {
+            is LogsSideEffect.CheckLogcatSilent -> {
+                onCommand(LogsCommand.LogcatSilentFound(getLogcatSilentTagUseCase()))
+            }
+
             is LogsSideEffect.LoadLogs -> {
                 combine(
                     getLogsFlowUseCase(),

@@ -12,14 +12,16 @@ android {
     defaultConfig {
         applicationId = logFoxPackageName
 
+        // Static defaults on purpose: F-Droid requires version info to be resolvable
+        // without any environment (F0x1d/LogFox#226). CI overrides them with env vars
         versionCode = providers
             .environmentVariable("VERSION_CODE")
             .orNull
             ?.toIntOrNull()
-            ?: Int.MAX_VALUE
+            ?: 81
         versionName = providers
             .environmentVariable("VERSION_NAME")
-            .getOrElse("unknown")
+            .getOrElse("2.1.10-hUh63-1.1")
     }
 
     buildFeatures {

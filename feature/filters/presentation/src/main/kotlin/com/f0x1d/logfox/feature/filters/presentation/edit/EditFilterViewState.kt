@@ -14,5 +14,7 @@ internal data class EditFilterViewState(
     val packageName: String?,
     val tag: String?,
     val content: String?,
+    val tagRegex: Boolean,
+    val contentRegex: Boolean,
     val isDirty: Boolean,
 )

@@ -17,6 +17,8 @@ internal data class UserFilterRoomEntity(
     @ColumnInfo(name = "package_name") val packageName: String? = null,
     @ColumnInfo(name = "tag") val tag: String? = null,
     @ColumnInfo(name = "content") val content: String? = null,
+    @ColumnInfo(name = "tag_regex", defaultValue = "0") val tagRegex: Boolean = false,
+    @ColumnInfo(name = "content_regex", defaultValue = "0") val contentRegex: Boolean = false,
     @ColumnInfo(name = "enabled") val enabled: Boolean = true,
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
 )

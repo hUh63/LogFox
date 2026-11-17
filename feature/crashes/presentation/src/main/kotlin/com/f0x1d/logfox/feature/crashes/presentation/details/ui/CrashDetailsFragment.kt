@@ -94,6 +94,12 @@ internal class CrashDetailsFragment :
             setClickListenerOn(R.id.wrap_lines_item) {
                 send(CrashDetailsCommand.WrapLinesClicked)
             }
+            setClickListenerOn(R.id.text_smaller_item) {
+                send(CrashDetailsCommand.DecreaseTextSize)
+            }
+            setClickListenerOn(R.id.text_larger_item) {
+                send(CrashDetailsCommand.IncreaseTextSize)
+            }
             setClickListenerOn(R.id.info_item) {
                 send(CrashDetailsCommand.OpenAppInfoClicked)
             }
@@ -164,6 +170,11 @@ internal class CrashDetailsFragment :
         // (F0x1d/LogFox#263)
         binding.logText.isVisible = state.wrapCrashLogLines
         binding.logTextScrollableContainer.isVisible = state.wrapCrashLogLines.not()
+
+        val textSize = state.textSize.toFloat()
+
+        binding.logText.textSize = textSize
+        binding.logTextScrollable.textSize = textSize
 
         state.crash?.let { binding.setupFor(it, state.crashLog) }
 

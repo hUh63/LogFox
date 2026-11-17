@@ -16,6 +16,8 @@ internal class EditFilterViewStateMapper @Inject constructor() : ViewStateMapper
         packageName = state.packageName,
         tag = state.tag,
         content = state.content,
+        tagRegex = state.tagRegex,
+        contentRegex = state.contentRegex,
         isDirty = state.isDirty,
     )
 }

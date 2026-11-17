@@ -14,5 +14,7 @@ interface CreateFilterUseCase {
         packageName: String?,
         tag: String?,
         content: String?,
+        tagRegex: Boolean = false,
+        contentRegex: Boolean = false,
     )
 }

@@ -71,6 +71,14 @@ internal class RecordingDetailsReducer @Inject constructor() : Reducer<Recording
             state.withSideEffects(RecordingDetailsSideEffect.ShareFile(command.file))
         }
 
+        is RecordingDetailsCommand.ViewRecording -> {
+            state.withSideEffects(RecordingDetailsSideEffect.PrepareView)
+        }
+
+        is RecordingDetailsCommand.ViewFileReady -> {
+            state.withSideEffects(RecordingDetailsSideEffect.ViewFile(command.file))
+        }
+
         is RecordingDetailsCommand.ExportFailed -> {
             state.withSideEffects(RecordingDetailsSideEffect.ExportFailed)
         }

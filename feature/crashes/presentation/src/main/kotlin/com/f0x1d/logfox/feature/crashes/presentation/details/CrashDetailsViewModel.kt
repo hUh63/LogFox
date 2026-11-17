@@ -3,6 +3,7 @@ package com.f0x1d.logfox.feature.crashes.presentation.details
 import com.f0x1d.logfox.core.tea.BaseStoreViewModel
 import com.f0x1d.logfox.feature.preferences.api.domain.crashes.GetUseSeparateNotificationsChannelsForCrashesUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.crashes.GetWrapCrashLogLinesUseCase
+import com.f0x1d.logfox.feature.preferences.api.domain.logs.GetLogsTextSizeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -14,12 +15,14 @@ internal class CrashDetailsViewModel @Inject constructor(
     viewStateMapper: CrashDetailsViewStateMapper,
     getWrapCrashLogLinesUseCase: GetWrapCrashLogLinesUseCase,
     getUseSeparateNotificationsChannelsForCrashesUseCase: GetUseSeparateNotificationsChannelsForCrashesUseCase,
+    getLogsTextSizeUseCase: GetLogsTextSizeUseCase,
 ) : BaseStoreViewModel<CrashDetailsViewState, CrashDetailsState, CrashDetailsCommand, CrashDetailsSideEffect>(
     initialState = CrashDetailsState(
         crash = null,
         crashLog = null,
         blacklisted = null,
         wrapCrashLogLines = getWrapCrashLogLinesUseCase(),
+        textSize = getLogsTextSizeUseCase(),
         useSeparateNotificationsChannelsForCrashes = getUseSeparateNotificationsChannelsForCrashesUseCase(),
         searchQuery = "",
         searchMatchRanges = emptyList(),

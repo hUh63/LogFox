@@ -19,6 +19,8 @@ internal sealed interface EditFilterSideEffect {
         val packageName: String?,
         val tag: String?,
         val content: String?,
+        val tagRegex: Boolean,
+        val contentRegex: Boolean,
     ) : EditFilterSideEffect
     data class ExportFilter(val uri: Uri, val filter: UserFilter?) : EditFilterSideEffect
 

@@ -11,6 +11,8 @@ import com.f0x1d.logfox.feature.datetime.api.DateTimeFormatter
 import com.f0x1d.logfox.feature.preferences.api.domain.crashes.GetUseSeparateNotificationsChannelsForCrashesFlowUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.crashes.GetWrapCrashLogLinesFlowUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.crashes.SetWrapCrashLogLinesUseCase
+import com.f0x1d.logfox.feature.preferences.api.domain.logs.GetLogsTextSizeFlowUseCase
+import com.f0x1d.logfox.feature.preferences.api.domain.logs.SetLogsTextSizeUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.service.GetLogFileExtensionUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.combine
@@ -26,6 +28,8 @@ internal class CrashDetailsEffectHandler @Inject constructor(
     private val getWrapCrashLogLinesFlowUseCase: GetWrapCrashLogLinesFlowUseCase,
     private val setWrapCrashLogLinesUseCase: SetWrapCrashLogLinesUseCase,
     private val getUseSeparateNotificationsChannelsForCrashesFlowUseCase: GetUseSeparateNotificationsChannelsForCrashesFlowUseCase,
+    private val getLogsTextSizeFlowUseCase: GetLogsTextSizeFlowUseCase,
+    private val setLogsTextSizeUseCase: SetLogsTextSizeUseCase,
     private val getLogFileExtensionUseCase: GetLogFileExtensionUseCase,
     private val dateTimeFormatter: DateTimeFormatter,
 ) : EffectHandler<CrashDetailsSideEffect, CrashDetailsCommand> {
@@ -47,14 +51,20 @@ internal class CrashDetailsEffectHandler @Inject constructor(
                 setWrapCrashLogLinesUseCase(effect.wrap)
             }
 
+            is CrashDetailsSideEffect.SetTextSize -> {
+                setLogsTextSizeUseCase(effect.size)
+            }
+
             is CrashDetailsSideEffect.ObservePreferences -> {
                 combine(
                     getWrapCrashLogLinesFlowUseCase(),
                     getUseSeparateNotificationsChannelsForCrashesFlowUseCase(),
-                ) { wrapCrashLogLines, useSeparateNotificationsChannelsForCrashes ->
+                    getLogsTextSizeFlowUseCase(),
+                ) { wrapCrashLogLines, useSeparateNotificationsChannelsForCrashes, textSize ->
                     CrashDetailsCommand.PreferencesUpdated(
                         wrapCrashLogLines = wrapCrashLogLines,
                         useSeparateNotificationsChannelsForCrashes = useSeparateNotificationsChannelsForCrashes,
+                        textSize = textSize,
                     )
                 }.collect { command ->
                     onCommand(command)

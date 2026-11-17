@@ -6,6 +6,13 @@
     <string name="no_root">No root detected</string>
     <string name="text_copied">Text copied</string>
     <string name="cannot_open_file">Cannot open file</string>
+    <string name="text_smaller">Smaller text</string>
+    <string name="text_larger">Larger text</string>
+    <string name="regex_tag">Match tag as regular expression</string>
+    <string name="regex_content">Match content as regular expression</string>
+    <string name="logcat_silent_warning">No logs are coming: %1$s is set to silent on this device. Set it to I (setprop %1$s I) and restart logging</string>
+    <string name="broadcast_log_events">Broadcast log events</string>
+    <string name="broadcast_log_events_desc">Send every log line as a com.f0x1d.logfox.LOG_EVENT broadcast, so Tasker, MacroDroid or Automate can react to it (max 50 events/second)</string>
     <string name="search">Search</string>
     <string name="clear">Clear</string>
     <string name="query">Query</string>

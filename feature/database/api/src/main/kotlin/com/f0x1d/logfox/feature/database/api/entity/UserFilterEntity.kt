@@ -13,5 +13,7 @@ data class UserFilterEntity(
     val packageName: String? = null,
     val tag: String? = null,
     val content: String? = null,
+    val tagRegex: Boolean = false,
+    val contentRegex: Boolean = false,
     val enabled: Boolean = true,
 )
