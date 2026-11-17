@@ -35,6 +35,21 @@ Yet another LogCat reader for Android
   <img src="./metadata/en-US/images/phoneScreenshots/5.png" width="30%" />
 </p>
 
+## MCP Server
+
+This fork merges the MCP (Model Context Protocol) server from the `LogFox_1.1`
+build into the current code base: LogFox can serve its logs, filters and query
+state to AI clients over SSE / JSON-RPC on port `8765` (configurable in
+Settings → Service → MCP Server).
+
+Endpoints: `/sse`, `/messages`, `/mcp`, `/logs`, `/query`, `/filters`,
+`/tools`, `/health`. Tools: `read_logs`, `get_stored_logs`, `set_query`,
+`get_query`, `clear_logs`, `get_filters`. See [docs/mcp.md](docs/mcp.md).
+
+APKs are built automatically by the `Build APK` workflow
+(`.github/workflows/build-mcp-apk.yml`) on every push to `master` and can be
+started manually from the Actions tab.
+
 ## License
 
 ```txt
