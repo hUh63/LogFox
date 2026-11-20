@@ -105,4 +105,17 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Log list came back empty after the same re-creation | `lastListRevision` is reset in `onViewCreated`, so the new RecyclerView gets the list submitted |
 | "Showing levels: …" was clipped to "Showing level…" | The summary moved out of the toolbar subtitle (it only gets the space left of the title and actions) into its own full-width line, up to two lines |
 
+## 1.6 — follow-up
+
+| Problem | Fix |
+|---------|-----|
+| Live logcat stopped for good after 10 s without output | The per-line `withTimeout` threw a `CancellationException`, which the collection code (now strict about cancellation) treated as a real cancel. `withTimeoutOrNull` + "keep waiting while the process is alive" instead: an idle live logcat is normal, a finished dump still ends the flow |
+| "Save all logs" inserted an empty recording when writing failed | The write error is rethrown after the toast, and the effect handler only opens a recording on success |
+| Two recordings saved within the same formatted time shared one file | Unique `-N` suffix, opened without append |
+| Whole-row crash updates blanked the legacy `log` column | `log` is part of `AppCrashEntity` and mapped both ways |
+| MCP: idle/half-open clients could starve the shared IO pool | 15 s socket read timeout + bounded concurrent clients (32) |
+| `su` process and three FDs leaked when writing the command failed | Destroyed and closed on failure; `TerminalProcess.destroy` also closes the pipes |
+| Settings kept claiming the MCP server was running after a force-stop | The "running" flag is reset when the process starts |
+
+
 

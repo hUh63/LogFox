@@ -25,6 +25,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.BufferedInputStream
@@ -65,6 +66,7 @@ internal class McpHttpServer(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
     private val sessions = ConcurrentHashMap<String, McpSession>()
+    private val clientSemaphore = Semaphore(MAX_CLIENTS)
 
     private var serverSocket: ServerSocket? = null
 
@@ -113,12 +115,26 @@ internal class McpHttpServer(
                 null
             } ?: continue
 
-            scope.launch { handleClient(client) }
+            // Bounded concurrency: every accepted connection used to get its own coroutine on
+            // the shared Dispatchers.IO pool, so enough idle clients starved the whole app
+            clientSemaphore.acquire()
+
+            scope.launch {
+                try {
+                    handleClient(client)
+                } finally {
+                    clientSemaphore.release()
+                }
+            }
         }
     }
 
     private suspend fun handleClient(client: Socket) {
         try {
+            // A client that connects and never sends anything used to hold an IO thread
+            // forever (slowloris); the socket read timeout closes it
+            client.soTimeout = SOCKET_TIMEOUT_MS
+
             val output = client.getOutputStream()
             val request = readRequest(BufferedInputStream(client.getInputStream()))
 
@@ -854,6 +870,8 @@ internal class McpHttpServer(
         private const val MAX_BODY_BYTES = 4 * 1024 * 1024
         private const val MAX_HEADERS = 100
         private const val MAX_LINE_BYTES = 8 * 1024
+        private const val SOCKET_TIMEOUT_MS = 15_000
+        private const val MAX_CLIENTS = 32
         private const val STREAM_TIMEOUT_MS = 10_000L
 
         private val ENDPOINTS = listOf(

@@ -48,13 +48,10 @@ internal class RecordingsRepositoryImpl @Inject constructor(
 
     override suspend fun saveAll(): LogRecording = withContext(ioDispatcher) {
         val recordingTime = System.currentTimeMillis()
-        val recordingFile = File(
-            recordingsDir,
-            "${dateTimeFormatter.formatForExport(recordingTime)}.log",
-        )
+        val recordingFile = uniqueRecordingFile(recordingTime)
 
         try {
-            FileOutputStream(recordingFile, true).use { out ->
+            FileOutputStream(recordingFile, false).use { out ->
                 val batch = mutableListOf<String>()
 
                 loggingRepository
@@ -81,6 +78,9 @@ internal class RecordingsRepositoryImpl @Inject constructor(
                 context.toast(Strings.error_saving_logs)
             }
             e.printStackTrace()
+
+            // A row pointing at a file that was never written opened an empty recording
+            throw e
         } catch (_: TimeoutCancellationException) {
             // Collection of logs finished!
         }
@@ -99,10 +99,7 @@ internal class RecordingsRepositoryImpl @Inject constructor(
     override suspend fun createRecordingFrom(lines: List<LogLine>): Unit = withContext(ioDispatcher) {
         val recordingTime = System.currentTimeMillis()
 
-        val recordingFile = File(
-            recordingsDir,
-            "${dateTimeFormatter.formatForExport(recordingTime)}.log",
-        )
+        val recordingFile = uniqueRecordingFile(recordingTime)
 
         recordingFile.writeText(
             lines.joinToString("\n") {
@@ -119,6 +116,25 @@ internal class RecordingsRepositoryImpl @Inject constructor(
             dateAndTime = recordingTime,
             file = recordingFile,
         ).let { logRecordingDataSource.insert(it.toEntity()) }
+    }
+
+    /**
+     * The filename comes from the user-configurable date/time format. Without a unique suffix
+     * two saves inside the same formatted interval landed in the same file and were appended
+     * to each other.
+     */
+    private fun uniqueRecordingFile(time: Long): File {
+        val base = dateTimeFormatter.formatForExport(time)
+
+        var file = File(recordingsDir, "$base.log")
+        var index = 1
+
+        while (file.exists()) {
+            file = File(recordingsDir, "$base-$index.log")
+            index++
+        }
+
+        return file
     }
 
     override suspend fun updateTitle(recordingId: Long, newTitle: String) {

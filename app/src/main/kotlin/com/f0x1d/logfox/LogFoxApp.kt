@@ -43,6 +43,16 @@ class LogFoxApp : Application(), ImageLoaderFactory {
         }
         Timber.d("onCreate")
 
+        // "MCP server is running" lives in SharedPreferences and is only cleared on a clean
+        // stop. After a force-stop or update it stayed true, so Settings kept showing a
+        // running server with a link that could not work.
+        runCatching {
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .edit()
+                .putBoolean(PREF_MCP_SERVER_RUNNING, false)
+                .apply()
+        }
+
         AppCompatDelegate.setDefaultNightMode(uiSettingsRepository.nightTheme().value)
         DynamicColors.applyToActivitiesIfAvailable(
             this,
@@ -127,5 +137,6 @@ class LogFoxApp : Application(), ImageLoaderFactory {
         private const val LOGGING_ENABLED = false
 
         private const val PREF_MCP_SERVER_ENABLED_DEFAULT_V2 = "pref_mcp_server_enabled_default_v2"
+        private const val PREF_MCP_SERVER_RUNNING = "pref_mcp_server_running"
     }
 }

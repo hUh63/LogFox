@@ -75,8 +75,13 @@ internal class RecordingsEffectHandler @Inject constructor(
                 onCommand(
                     RecordingsCommand.ShowSavingSnackbar(context.getString(Strings.saving_logs)),
                 )
-                val recording = saveAllRecordingsUseCase()
-                onCommand(RecordingsCommand.SaveAllCompleted(recording))
+
+                // The repository already reported the failure. Do not open a recording that
+                // was never written (it used to open a blank details screen).
+                runCatching { saveAllRecordingsUseCase() }
+                    .onSuccess { recording ->
+                        onCommand(RecordingsCommand.SaveAllCompleted(recording))
+                    }
             }
 
             is RecordingsSideEffect.DeleteRecording -> {

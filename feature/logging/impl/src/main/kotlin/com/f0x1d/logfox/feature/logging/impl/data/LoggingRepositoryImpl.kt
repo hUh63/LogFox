@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.BufferedReader
 import javax.inject.Inject
@@ -82,17 +82,25 @@ internal class LoggingRepositoryImpl @Inject constructor(
                 Timber.d("Got reader")
 
                 while (true) {
-                    Timber.d("Started awaiting line")
-                    val line = withTimeout(readLineTimeout) {
+                    val line = withTimeoutOrNull(readLineTimeout) {
                         reader.readLineCancellable()
                     }
-                    Timber.d("Got line $line")
+
+                    if (line == null) {
+                        // No line in time. `withTimeout` used to throw here, and because the
+                        // exception is a CancellationException the whole collection was
+                        // treated as cancelled: a logcat stream that was simply idle for
+                        // 10 seconds was destroyed and (after the cancellation handling
+                        // became strict) never restarted. An idle live logcat is normal, so
+                        // keep waiting for as long as the process is alive; a finished dump
+                        // ends the flow normally.
+                        if (process.isStillRunning()) continue else break
+                    }
 
                     val logLine = logLineParser.parse(
                         id = idsCounter++,
                         line = line,
                     )
-                    Timber.d("Parsed $line to $logLine")
 
                     if (logLine == null) continue
 
@@ -107,7 +115,7 @@ internal class LoggingRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun BufferedReader.readLineCancellable(): String = withContext(ioDispatcher) {
+    private suspend fun BufferedReader.readLineCancellable(): String? = withContext(ioDispatcher) {
         while (true) {
             if (ready()) {
                 return@withContext readLine()
@@ -115,8 +123,12 @@ internal class LoggingRepositoryImpl @Inject constructor(
             delay(100L)
         }
 
-        "not reachable"
+        @Suppress("UNREACHABLE_CODE")
+        null
     }
+
+    /** [Process.isAlive] needs API 26, the app supports 24. */
+    private fun Process.isStillRunning(): Boolean = runCatching { exitValue() }.isFailure
 
     private fun formatTimestampForLogcat(timeMillis: Long): String {
         val seconds = timeMillis / 1000
