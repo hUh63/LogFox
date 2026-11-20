@@ -2,7 +2,7 @@
 
 All issues of [F0x1d/LogFox](https://github.com/F0x1d/LogFox/issues) (26 at the time of writing,
 18 open + 8 closed) checked against this fork. "Implemented" means the code ships in the
-`v2.1.10-hUh63-1.3` release.
+`v2.1.10-hUh63-1.4` release (1.2–1.4 are cumulative).
 
 ## Fixed / implemented here
 
@@ -68,3 +68,41 @@ extras: level (VERBOSE/DEBUG/INFO/WARNING/ERROR/FATAL/SILENT), tag, content,
 at most 50 events per second (logcat easily produces thousands, and flooding would break both
 sides). In Tasker add a *System → Intent Received* profile for `com.f0x1d.logfox.LOG_EVENT`
 and match on `tag` / `content`, e.g. `%content ~ *MyTag*`.
+
+## 1.4 — stability pass
+
+Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
+
+| Area | Problem | Fix |
+|------|---------|-----|
+| Level filter buttons (#259) | The highlight came from `MaterialButton` toggling itself, but the list was only re-submitted when a shared `logsChanged` flag was true — and the scroll listener's `Pause` kept resetting it. Result: buttons lit up without filtering anything. | Buttons no longer toggle themselves (`app:toggleCheckedStateOnClick="false"`), the store is the single source of truth (`ToggleLevelFilter`), and the list is submitted on a monotonic `listRevision` instead of the dirty flag |
+| Level filter buttons | No visible feedback about what was filtered | Snackbar + toolbar subtitle ("Showing levels: …") |
+| ProGuard retrace (#264) | The parsing regexes had no named groups but were read via `groups["…"]`, so every frame threw and the exception was swallowed — retracing silently did nothing | Positional groups, R8 inline-frame support (`start:end:…:obfStart:obfEnd`) with line mapping, no more guessing the first overload |
+| First Shizuku authorization "crash" | `hardRestartApp()` killed the process even when the replacement activity had not started | Restart only kills the process after `startActivity` actually succeeded; launch intent gets `NEW_TASK`/`CLEAR_TASK` |
+| Root setup | `pm grant` exit code was ignored, so a denied su prompt was reported as success | Checks `TerminalResult.isSuccessful`, exceptions become a normal failure |
+| TEA store | One reducer/effect exception crashed the app or killed the screen permanently | Exceptions are isolated (cancellation rethrown), jobs always cleaned up, `ConcurrentHashMap` |
+| Log collection | `Flow.catch` only protects upstream; a failure inside `collect` stopped logging for good, an error caused two restarts, a normal stop was treated as an error | Explicit failure/cancel flags and a `finally` that only restarts on clean completion |
+| Log updates to UI | A failed preference read killed the only loop pushing logs to the list | Interval read is protected, clamped to a sane minimum |
+| Crash detection | `collecting` was only reset on success — one failure disabled crash detection and leaked memory | Reset in `finally` |
+| Recordings | `end()` left the state at `SAVING` on any failure, freezing recording forever | `finally` always returns to `IDLE` and clears the file |
+| Filters editor | Backing out of a new filter created an empty "including" filter that matched every line and neutralized other filters; export used the snapshot loaded on open | Empty new filters are discarded, export serializes the current values |
+| Crash export | Whole-file read + reformat on the main thread (ANR) and `Result` ignored (silent empty file) | Runs on IO, failures surface as a snackbar |
+| Date/time format | An invalid custom pattern crashed list/detail screens from a `lazy` initializer; new format needed a restart | Falls back to the default pattern, formatter cache keyed by pattern |
+| Shizuku terminal | Cached proxy trusted blindly, concurrent binds, stale proxy after a failed unbind | Serialized binding, binder liveness check, proxy cleared in `finally` |
+| Shizuku user service | `destroy()` joined pipe coroutines that block in `read()` before killing the children → deadlock, `:service` process leaked | Children are destroyed first, bounded join |
+| Logging service | `startForeground` only in `onCreate` (cold starts killed after 5 s), negative notification id, side-effect collector died on one bad effect | Re-asserted in `onStartCommand`, positive id, isolated collector |
+| MCP server | Unbounded request line/header read, busy-loop on persistent `accept` errors, SSE session leaked when the client disconnected immediately, unbounded log channel, wildcard CORS exposed logcat to any web page | Length limits, accept backoff, sessions registered inside `try`, bounded channel, CORS removed |
+| Apps picker | A query typed while the package list was loading was overwritten by the full list | Query is re-applied after loading |
+| Service settings | One-time migration wrote `enabled=true` even when the user had turned the server off | Only fresh installs get the default |
+| Filters list | A dirty row killed the flow collector, list never refreshed again | Retry with backoff |
+| CI release | Tag builds ignored the tag and shipped the hard-coded default version | Tag name becomes `versionName` (`v` stripped), default bumped to 84 |
+
+## 1.5 — level filter follow-up
+
+| Problem | Fix |
+|---------|-----|
+| Level buttons could not be selected at all after switching the service backend | The button list was a `by lazy` property bound to the fragment *binding*. Re-creating the fragment view (what switching the backend does) leaves the fragment instance alive, so the lazy list kept pointing at destroyed views: the listener was attached to invisible buttons and the visible ones did nothing. Resolved on every access now. |
+| Log list came back empty after the same re-creation | `lastListRevision` is reset in `onViewCreated`, so the new RecyclerView gets the list submitted |
+| "Showing levels: …" was clipped to "Showing level…" | The summary moved out of the toolbar subtitle (it only gets the space left of the title and actions) into its own full-width line, up to two lines |
+
+
