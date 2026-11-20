@@ -52,17 +52,21 @@ internal class LogsFragment :
     /** Last [LogsViewState.listRevision] handed to the adapter. */
     private var lastListRevision = -1L
 
-    private val levelButtons by lazy {
-        listOf(
-            binding.levelV to LogLevel.VERBOSE,
-            binding.levelD to LogLevel.DEBUG,
-            binding.levelI to LogLevel.INFO,
-            binding.levelW to LogLevel.WARNING,
-            binding.levelE to LogLevel.ERROR,
-            binding.levelF to LogLevel.FATAL,
-            binding.levelS to LogLevel.SILENT,
-        )
-    }
+    /**
+     * Resolved on every access on purpose. The fragment view can be re-created (switching
+     * the service backend does exactly that) while the fragment instance survives; a
+     * `by lazy` list would keep pointing at the destroyed views, so the buttons the user
+     * actually sees had no click listener and could not be selected anymore.
+     */
+    private fun levelButtons() = listOf(
+        binding.levelV to LogLevel.VERBOSE,
+        binding.levelD to LogLevel.DEBUG,
+        binding.levelI to LogLevel.INFO,
+        binding.levelW to LogLevel.WARNING,
+        binding.levelE to LogLevel.ERROR,
+        binding.levelF to LogLevel.FATAL,
+        binding.levelS to LogLevel.SILENT,
+    )
 
     private val adapter by lazy {
         LogsAdapter(
@@ -102,6 +106,10 @@ internal class LogsFragment :
     override fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?) = FragmentLogsBinding.inflate(inflater, container, false)
 
     override fun FragmentLogsBinding.onViewCreated(view: View, savedInstanceState: Bundle?) {
+        // A re-created view gets a brand new RecyclerView: force the next render to submit
+        // the list again, otherwise the screen came back empty after switching backends
+        lastListRevision = -1L
+
         requireContext().isHorizontalOrientation.also { horizontalOrientation ->
             logsRecycler.applyInsetter {
                 type(navigationBars = true) {
@@ -115,7 +123,7 @@ internal class LogsFragment :
             }
         }
 
-        levelButtons.forEach { (button, level) ->
+        levelButtons().forEach { (button, level) ->
             button.setOnClickListener {
                 // The store is the single source of truth: a level button is only a view of
                 // LogsState.levelFilters. MaterialButton must never toggle itself
@@ -221,7 +229,7 @@ internal class LogsFragment :
         )
         binding.processPaused(paused = state.paused)
 
-        levelButtons.forEach { (button, level) ->
+        levelButtons().forEach { (button, level) ->
             val checked = level in state.levelFilters
 
             if (button.isChecked != checked) button.isChecked = checked
@@ -303,15 +311,18 @@ internal class LogsFragment :
         filters: List<UserFilter>,
         levels: Set<LogLevel>,
     ) {
+        // Levels get their own full-width line: inside the toolbar the subtitle only got the
+        // space left of the title and actions, so "Showing levels: V" was clipped
+        val levelSummary = if (levels.isEmpty()) {
+            null
+        } else {
+            getString(Strings.level_filter_active, levels.joinToString(" ") { it.letter })
+        }
+
+        levelFilterSummary.text = levelSummary
+        levelFilterSummary.visibility = if (levelSummary == null) View.GONE else View.VISIBLE
+
         val subtitle = buildString {
-            if (levels.isNotEmpty()) {
-                append(getString(Strings.level_filter_active, levels.joinToString(" ") { it.letter }))
-            }
-
-            if (levels.isNotEmpty() && (query != null || filters.isNotEmpty())) {
-                append(", ")
-            }
-
             if (query != null) {
                 append(query)
 
@@ -327,11 +338,11 @@ internal class LogsFragment :
             }
         }
 
-        toolbar.subtitle = subtitle
+        toolbar.subtitle = subtitle.ifEmpty { null }
         placeholderLayout.placeholderText.setText(
             when {
-                subtitle.isEmpty() -> Strings.waiting_for_logs
-                else -> Strings.all_logs_were_filtered_out
+                subtitle.isNotEmpty() || levelSummary != null -> Strings.all_logs_were_filtered_out
+                else -> Strings.waiting_for_logs
             },
         )
     }
