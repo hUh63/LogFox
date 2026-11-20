@@ -140,6 +140,7 @@ internal class CrashDetailsEffectHandler @Inject constructor(
             is CrashDetailsSideEffect.LaunchMappingPicker -> Unit
             is CrashDetailsSideEffect.LaunchFileExportPicker -> Unit
             is CrashDetailsSideEffect.LaunchZipExportPicker -> Unit
+            is CrashDetailsSideEffect.ExportFailed -> Unit
         }
     }
 
