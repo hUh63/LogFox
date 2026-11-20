@@ -43,7 +43,9 @@ internal class LoggingRepositoryImpl @Inject constructor(
             terminal = terminal,
             command = command,
             startingId = startingId,
-            readLineTimeout = 10.seconds,
+            // 60 s of silence is common on an idle device; a shorter window only tore the
+            // stream down and rebuilt logcat over and over
+            readLineTimeout = 60.seconds,
         )
     }.flowOn(ioDispatcher)
 
@@ -87,14 +89,11 @@ internal class LoggingRepositoryImpl @Inject constructor(
                     }
 
                     if (line == null) {
-                        // No line in time. `withTimeout` used to throw here, and because the
-                        // exception is a CancellationException the whole collection was
-                        // treated as cancelled: a logcat stream that was simply idle for
-                        // 10 seconds was destroyed and (after the cancellation handling
-                        // became strict) never restarted. An idle live logcat is normal, so
-                        // keep waiting for as long as the process is alive; a finished dump
-                        // ends the flow normally.
-                        if (process.isStillRunning()) continue else break
+                        // Idle or EOF. End the flow *normally* instead of throwing: the old
+                        // `withTimeout` raised a CancellationException, which the collection
+                        // code now (correctly) treats as a real cancel - so a live logcat
+                        // that was simply idle stopped for good.
+                        break
                     }
 
                     val logLine = logLineParser.parse(
@@ -126,9 +125,6 @@ internal class LoggingRepositoryImpl @Inject constructor(
         @Suppress("UNREACHABLE_CODE")
         null
     }
-
-    /** [Process.isAlive] needs API 26, the app supports 24. */
-    private fun Process.isStillRunning(): Boolean = runCatching { exitValue() }.isFailure
 
     private fun formatTimestampForLogcat(timeMillis: Long): String {
         val seconds = timeMillis / 1000
