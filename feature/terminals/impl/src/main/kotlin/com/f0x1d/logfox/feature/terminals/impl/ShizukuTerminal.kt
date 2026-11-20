@@ -116,17 +116,13 @@ internal class ShizukuTerminal @Inject constructor(
     }
 
     private suspend fun ensureUserServiceBound(): Boolean = userServiceMutex.withLock {
-        val existing = userService
-
-        if (existing != null) {
-            // A cached proxy can outlive the remote process. Trusting it blindly made the
-            // first log start after a Shizuku restart fail even though the service was gone.
-            val alive = runCatching { existing.asBinder().isBinderAlive }.getOrDefault(false)
-
-            if (alive) return@withLock true
-
-            userService = null
-        }
+        // Do NOT probe the cached proxy with `asBinder().isBinderAlive` here. The binder
+        // handed out by Shizuku can report false while the user service is perfectly
+        // alive, which made every isSupported() drop the proxy, rebind and time out -
+        // the Shizuku backend was then shown as "unavailable" despite granted permission.
+        // A genuinely dead proxy is already detected by execute()/executeNow(), which
+        // call resetUserService() on RemoteException and rebind on the next call.
+        if (userService != null) return@withLock true
 
         withTimeoutOrNull(BIND_TIMEOUT_MS) {
             suspendCancellableCoroutine<Boolean> { continuation ->

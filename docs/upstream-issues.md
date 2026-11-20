@@ -119,3 +119,9 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 
 
 
+## 1.7 — Shizuku backend regression
+
+| Problem | Fix |
+|---------|-----|
+| Shizuku backend shown as unavailable even though permission was granted | The `isBinderAlive` probe added to `ensureUserServiceBound()` in 1.4 is unreliable for the binder Shizuku hands out: it can report false while the user service is alive. Every availability check then discarded the cached proxy, rebound and hit the 15 s timeout. Removed the probe; a genuinely dead proxy is already reset by `execute()`/`executeNow()` on `RemoteException` |
+
