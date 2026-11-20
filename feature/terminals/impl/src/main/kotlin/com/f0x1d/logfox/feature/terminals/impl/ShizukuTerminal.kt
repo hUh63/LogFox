@@ -18,6 +18,8 @@ import com.f0x1d.logfox.feature.terminals.presentation.service.UserService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
@@ -48,6 +50,9 @@ internal class ShizukuTerminal @Inject constructor(
     override val type = TerminalType.Shizuku
     override val title = R.string.shizuku
 
+    private val userServiceMutex = Mutex()
+
+    @Volatile
     private var userService: IUserService? = null
 
     private val userServiceArgs by lazy {
@@ -110,10 +115,20 @@ internal class ShizukuTerminal @Inject constructor(
         } ?: false
     }
 
-    private suspend fun ensureUserServiceBound(): Boolean {
-        if (userService != null) return true
+    private suspend fun ensureUserServiceBound(): Boolean = userServiceMutex.withLock {
+        val existing = userService
 
-        return withTimeoutOrNull(BIND_TIMEOUT_MS) {
+        if (existing != null) {
+            // A cached proxy can outlive the remote process. Trusting it blindly made the
+            // first log start after a Shizuku restart fail even though the service was gone.
+            val alive = runCatching { existing.asBinder().isBinderAlive }.getOrDefault(false)
+
+            if (alive) return@withLock true
+
+            userService = null
+        }
+
+        withTimeoutOrNull(BIND_TIMEOUT_MS) {
             suspendCancellableCoroutine<Boolean> { continuation ->
                 val connection = object : ServiceConnection {
                     override fun onServiceConnected(componentName: ComponentName?, binder: IBinder?) {
@@ -194,12 +209,16 @@ internal class ShizukuTerminal @Inject constructor(
     }
 
     override suspend fun exit() {
-        // Catching as binder might not even was received
-        runCatching {
-            // With true flag it does not remove connection from cache
-            Shizuku.unbindUserService(userServiceArgs, null, false)
-            Shizuku.unbindUserService(userServiceArgs, null, true)
-
+        try {
+            // Catching as binder might not even was received
+            runCatching {
+                // With true flag it does not remove connection from cache
+                Shizuku.unbindUserService(userServiceArgs, null, false)
+                Shizuku.unbindUserService(userServiceArgs, null, true)
+            }
+        } finally {
+            // Must be cleared even when unbinding throws: a stale proxy used to stay cached
+            // forever and every later isSupported() kept returning true
             userService = null
         }
     }

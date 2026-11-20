@@ -302,6 +302,11 @@ internal class CrashDetailsFragment :
                 zipCrashLauncher.launch(sideEffect.filename)
             }
 
+            is CrashDetailsSideEffect.ExportFailed -> {
+                // Without this the export silently "succeeded" even when nothing was written
+                snackbar(Strings.cannot_open_file)
+            }
+
             // Business logic side effects are handled by EffectHandler
             else -> Unit
         }

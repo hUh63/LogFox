@@ -65,4 +65,7 @@ internal sealed interface CrashDetailsCommand {
     data object ClearMappingClicked : CrashDetailsCommand
 
     data object MappingCleared : CrashDetailsCommand
+
+    /** Export finished with an error; [message] is the localized failure reason. */
+    data class ExportFailed(val message: String?) : CrashDetailsCommand
 }

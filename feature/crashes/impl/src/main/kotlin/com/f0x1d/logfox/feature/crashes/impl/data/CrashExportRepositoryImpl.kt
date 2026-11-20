@@ -2,6 +2,7 @@ package com.f0x1d.logfox.feature.crashes.impl.data
 
 import android.net.Uri
 import com.f0x1d.logfox.core.context.deviceData
+import com.f0x1d.logfox.core.di.IODispatcher
 import com.f0x1d.logfox.core.io.putZipEntry
 import com.f0x1d.logfox.feature.crashes.api.data.CrashExportRepository
 import com.f0x1d.logfox.feature.crashes.api.data.CrashesRepository
@@ -10,6 +11,8 @@ import com.f0x1d.logfox.feature.export.api.data.ExportRepository
 import com.f0x1d.logfox.feature.logging.api.data.LogLineFormatterRepository
 import com.f0x1d.logfox.feature.logging.api.data.LogLineParser
 import com.f0x1d.logfox.feature.preferences.api.data.ServiceSettingsRepository
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -21,10 +24,13 @@ internal class CrashExportRepositoryImpl @Inject constructor(
     private val dateTimeFormatter: DateTimeFormatter,
     private val logLineParser: LogLineParser,
     private val logLineFormatterRepository: LogLineFormatterRepository,
+    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : CrashExportRepository {
 
-    override suspend fun exportToFile(crashId: Long, uri: Uri) {
-        val appCrash = crashesRepository.getById(crashId) ?: return
+    override suspend fun exportToFile(crashId: Long, uri: Uri) = withContext(ioDispatcher) {
+        // Everything below (PackageManager lookups, whole-file read + reformat) used to run
+        // on the main thread, which froze the UI / triggered ANRs on large crash logs
+        val appCrash = crashesRepository.getById(crashId) ?: return@withContext
 
         val content = buildString {
             if (serviceSettingsRepository.includeDeviceInfoInArchives().value) {
@@ -41,8 +47,8 @@ internal class CrashExportRepositoryImpl @Inject constructor(
         exportRepository.writeContentToUri(uri, content)
     }
 
-    override suspend fun exportToZip(crashId: Long, uri: Uri) {
-        val appCrash = crashesRepository.getById(crashId) ?: return
+    override suspend fun exportToZip(crashId: Long, uri: Uri) = withContext(ioDispatcher) {
+        val appCrash = crashesRepository.getById(crashId) ?: return@withContext
 
         val deviceInfo = if (serviceSettingsRepository.includeDeviceInfoInArchives().value) {
             deviceData

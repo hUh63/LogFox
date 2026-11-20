@@ -45,6 +45,10 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
             CrashDetailsSideEffect.LoadCrash,
         )
 
+        is CrashDetailsCommand.ExportFailed -> state.withSideEffects(
+            CrashDetailsSideEffect.ExportFailed(command.message),
+        )
+
         is CrashDetailsCommand.ShowReplaceDialog -> state.withSideEffects(
             CrashDetailsSideEffect.ShowReplace,
         )

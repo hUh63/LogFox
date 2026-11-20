@@ -7,7 +7,10 @@ import com.f0x1d.logfox.feature.filters.api.domain.ExportFiltersToUriUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.GetAllFiltersFlowUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.ImportFiltersFromUriUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.SwitchFilterUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.retryWhen
 import javax.inject.Inject
 
 internal class FiltersEffectHandler @Inject constructor(
@@ -27,8 +30,21 @@ internal class FiltersEffectHandler @Inject constructor(
             is FiltersSideEffect.LoadFilters -> {
                 getAllFiltersFlowUseCase()
                     .distinctUntilChanged()
+                    // A dirty row (e.g. an out-of-range level persisted by an older build)
+                    // used to kill this collector for good, so the list never refreshed again
+                    .retryWhen { throwable, attempt ->
+                        if (throwable is CancellationException) throw throwable
+
+                        throwable.printStackTrace()
+                        delay(1_000L * (attempt + 1).coerceAtMost(10L))
+                        true
+                    }
                     .collect { filters ->
-                        onCommand(FiltersCommand.FiltersLoaded(filters))
+                        runCatching { onCommand(FiltersCommand.FiltersLoaded(filters)) }
+                            .onFailure { throwable ->
+                                if (throwable is CancellationException) throw throwable
+                                throwable.printStackTrace()
+                            }
                     }
             }
 

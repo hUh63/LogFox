@@ -33,12 +33,18 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
                     state.noSideEffects()
                 }
             } else {
+                // Drop expand overrides of lines that were already evicted from the buffer:
+                // the map was only ever added to, so it grew for the whole session (and ids
+                // are reused after a clear, leaking stale expand state into new lines)
+                val visibleIds = command.logs.mapTo(HashSet(command.logs.size)) { it.id }
+
                 state.copy(
                     logs = command.logs,
                     query = command.query,
                     caseSensitive = command.caseSensitive,
                     filters = command.filters,
                     showLogValues = command.showLogValues,
+                    expandedOverrides = state.expandedOverrides.filterKeys { it in visibleIds },
                     logsChanged = true,
                     listRevision = state.listRevision + 1,
                 ).noSideEffects()

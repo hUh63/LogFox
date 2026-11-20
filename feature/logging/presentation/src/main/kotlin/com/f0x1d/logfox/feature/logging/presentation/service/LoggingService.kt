@@ -17,6 +17,7 @@ import com.f0x1d.logfox.core.ui.icons.Icons
 import com.f0x1d.logfox.feature.notifications.api.LOGGING_STATUS_CHANNEL_ID
 import com.f0x1d.logfox.feature.strings.Strings
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -29,6 +30,9 @@ class LoggingService : LifecycleService() {
         const val ACTION_RESTART_LOGGING = "logfox.RESTART_LOGGING"
         const val ACTION_CLEAR_LOGS = "logfox.CLEAR_LOGS"
         const val ACTION_KILL_SERVICE = "logfox.KILL_SERVICE"
+
+        // Must be positive: -1 is rejected by some OEM implementations of startForeground
+        private const val NOTIFICATION_ID = 0x10F0
     }
 
     private val binder = LocalBinder()
@@ -44,14 +48,22 @@ class LoggingService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
 
-        startForeground(-1, notification())
+        ensureForeground()
 
         store = storeFactory.create(lifecycleScope)
 
         // Observe side effects for UI handling
         lifecycleScope.launch {
             store.sideEffects.collect { sideEffect ->
-                handleSideEffect(sideEffect)
+                // One bad side effect (toast restrictions, task removal security error) used
+                // to kill the only consumer: after that the notification "exit" action and
+                // every toast stopped working for the rest of the service lifetime
+                runCatching { handleSideEffect(sideEffect) }
+                    .onFailure { throwable ->
+                        if (throwable is CancellationException) throw throwable
+
+                        Timber.e(throwable, "Failed to handle side effect")
+                    }
             }
         }
 
@@ -62,6 +74,11 @@ class LoggingService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
+        // startForegroundService() requires startForeground() within 5 seconds on every
+        // start, not only in onCreate (the instance may already exist, or the first
+        // notification may have failed to build)
+        ensureForeground()
+
         Timber.d("got command ${intent?.action}")
         when (intent?.action) {
             ACTION_RESTART_LOGGING -> store.send(LoggingServiceCommand.RestartLogging)
@@ -70,6 +87,12 @@ class LoggingService : LifecycleService() {
         }
 
         return START_NOT_STICKY
+    }
+
+    private fun ensureForeground() {
+        // A failed notification must not crash the service; logging still runs in background
+        runCatching { startForeground(NOTIFICATION_ID, notification()) }
+            .onFailure { Timber.e(it, "Failed to enter foreground") }
     }
 
     private fun clearLogs() {

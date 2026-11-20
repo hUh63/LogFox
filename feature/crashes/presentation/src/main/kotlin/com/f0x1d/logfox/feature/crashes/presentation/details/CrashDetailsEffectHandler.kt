@@ -98,11 +98,25 @@ internal class CrashDetailsEffectHandler @Inject constructor(
             }
 
             is CrashDetailsSideEffect.ExportCrashToZip -> {
-                exportCrashToZipUseCase(crashId, effect.uri)
+                val result = exportCrashToZipUseCase(crashId, effect.uri)
+
+                // The Result used to be dropped entirely: a failed export looked like a
+                // success and left a truncated/empty file behind
+                if (result.isFailure) {
+                    onCommand(
+                        CrashDetailsCommand.ExportFailed(result.exceptionOrNull()?.localizedMessage)
+                    )
+                }
             }
 
             is CrashDetailsSideEffect.ExportCrashToFile -> {
-                exportCrashToFileUseCase(crashId, effect.uri)
+                val result = exportCrashToFileUseCase(crashId, effect.uri)
+
+                if (result.isFailure) {
+                    onCommand(
+                        CrashDetailsCommand.ExportFailed(result.exceptionOrNull()?.localizedMessage)
+                    )
+                }
             }
 
             is CrashDetailsSideEffect.ChangeBlacklist -> {

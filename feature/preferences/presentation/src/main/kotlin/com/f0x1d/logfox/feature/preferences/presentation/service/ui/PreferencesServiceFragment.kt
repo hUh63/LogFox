@@ -52,12 +52,20 @@ internal class PreferencesServiceFragment :
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
 
         if (!sharedPreferences.contains(PREF_MCP_SERVER_ENABLED_DEFAULT_V2)) {
-            sharedPreferences.edit()
-                .putBoolean(PREF_MCP_SERVER_ENABLED, true)
+            val editor = sharedPreferences.edit()
                 .putBoolean(PREF_MCP_SERVER_ENABLED_DEFAULT_V2, true)
-                .apply()
 
-            startMcpServer()
+            // Only default the switch to "on" for fresh installs. Writing `true`
+            // unconditionally used to resurrect the server for users who had explicitly
+            // turned it off, because the migration flag is missing on every old install.
+            if (!sharedPreferences.contains(PREF_MCP_SERVER_ENABLED)) {
+                editor.putBoolean(PREF_MCP_SERVER_ENABLED, true)
+                editor.apply()
+
+                startMcpServer()
+            } else {
+                editor.apply()
+            }
         }
 
         addPreferencesFromResource(R.xml.settings_service)

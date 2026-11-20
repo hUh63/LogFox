@@ -76,34 +76,59 @@ internal class LoggingServiceEffectHandler @Inject constructor(
 
                 logCollectionJob?.cancel()
                 logCollectionJob = effectScope.launch {
-                    startLoggingUseCase(
-                        terminal = effect.terminal,
-                        startingId = startingId,
-                        lastLogTime = lastLog?.dateAndTime,
-                    ).catch { throwable ->
-                        Timber.e(throwable, "Logging flow error")
-                        if (throwable !is CancellationException) {
+                    var failed = false
+                    var cancelled = false
+
+                    try {
+                        startLoggingUseCase(
+                            terminal = effect.terminal,
+                            startingId = startingId,
+                            lastLogTime = lastLog?.dateAndTime,
+                        ).catch { throwable ->
+                            // Cancellation must stay cancellation, otherwise a normal stop
+                            // was reported as an error and triggered an extra restart
+                            if (throwable is CancellationException) throw throwable
+
+                            failed = true
+                            Timber.e(throwable, "Logging flow error")
                             onCommand(
                                 LoggingServiceCommand.LoggingError(
                                     error = throwable,
                                     terminal = effect.terminal,
                                 )
                             )
+                        }.collect { logLine ->
+                            withContext(defaultDispatcher) {
+                                // One failing step (full disk, broken recording file, dead
+                                // receiver) used to abort the whole collection flow, which
+                                // stopped logging for good
+                                step("store") { addLogLineUseCase(logLine) }
+                                step("crashes") { processLogLineCrashesUseCase(logLine) }
+                                step("recording") { processLogLineRecordingUseCase(logLine) }
+                                step("broadcast") { broadcastLogEventUseCase(logLine) }
+                            }
                         }
-                    }.collect { logLine ->
-                        withContext(defaultDispatcher) {
-                            // One failing step (full disk, broken recording file, dead
-                            // receiver) used to abort the whole collection flow, which
-                            // stopped logging for good
-                            step("store") { addLogLineUseCase(logLine) }
-                            step("crashes") { processLogLineCrashesUseCase(logLine) }
-                            step("recording") { processLogLineRecordingUseCase(logLine) }
-                            step("broadcast") { broadcastLogEventUseCase(logLine) }
+                    } catch (cancellationException: CancellationException) {
+                        cancelled = true
+                        throw cancellationException
+                    } catch (throwable: Throwable) {
+                        // Failure inside collect (not covered by Flow.catch, which only
+                        // protects the upstream) used to kill logging silently and forever
+                        failed = true
+                        Timber.e(throwable, "Logging collection failed")
+                        onCommand(
+                            LoggingServiceCommand.LoggingError(
+                                error = throwable,
+                                terminal = effect.terminal,
+                            )
+                        )
+                    } finally {
+                        // Only a clean finish restarts collection; an error path already
+                        // schedules its own retry and a cancellation must not restart at all
+                        if (!failed && !cancelled) {
+                            onCommand(LoggingServiceCommand.LoggingFlowCompleted)
                         }
                     }
-
-                    // Flow completed normally
-                    onCommand(LoggingServiceCommand.LoggingFlowCompleted)
                 }
             }
 
@@ -123,7 +148,19 @@ internal class LoggingServiceEffectHandler @Inject constructor(
                 logUpdatesJob?.cancel()
                 logUpdatesJob = effectScope.launch {
                     while (true) {
-                        delay(getLogsUpdateIntervalUseCase())
+                        // Reading the interval used to sit outside any protection: one bad
+                        // preference value killed the only loop that ever pushes logs to the
+                        // UI, so the list froze until the app was restarted
+                        val interval = try {
+                            getLogsUpdateIntervalUseCase().coerceAtLeast(MIN_UPDATE_INTERVAL_MS)
+                        } catch (cancellationException: CancellationException) {
+                            throw cancellationException
+                        } catch (throwable: Throwable) {
+                            Timber.w(throwable, "Failed to read logs update interval")
+                            MIN_UPDATE_INTERVAL_MS
+                        }
+
+                        delay(interval)
 
                         step("snapshot") {
                             val logs = getLogsSnapshotUseCase()
@@ -206,6 +243,7 @@ internal class LoggingServiceEffectHandler @Inject constructor(
 
     companion object {
         private const val RETRY_DELAY_MS = 10_000L
+        private const val MIN_UPDATE_INTERVAL_MS = 50L
     }
 
     // Keeps the log pipeline alive when a single step fails: rethrows cancellation only

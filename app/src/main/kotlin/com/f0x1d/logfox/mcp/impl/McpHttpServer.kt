@@ -14,11 +14,14 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -93,14 +96,20 @@ internal class McpHttpServer(
     }
 
     private suspend fun acceptLoop(socket: ServerSocket) {
+        var failures = 0
+
         while (running.get()) {
             val client = try {
-                socket.accept()
+                socket.accept().also { failures = 0 }
             } catch (e: Exception) {
-                if (running.get()) {
-                    Timber.e(e, "[MCP] Failed to accept connection")
-                }
+                if (!running.get()) return
 
+                failures++
+                Timber.e(e, "[MCP] Failed to accept connection")
+
+                // Without backoff a persistent accept error (e.g. EMFILE) turned this into a
+                // 100% CPU busy loop while `isRunning` still reported true
+                delay((100L * failures).coerceAtMost(2_000L))
                 null
             } ?: continue
 
@@ -118,8 +127,12 @@ internal class McpHttpServer(
             }
 
             route(request, output)
-        } catch (e: Exception) {
-            Timber.e(e, "[MCP] Failed to handle connection")
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+
+            // Malformed input can raise an OutOfMemoryError, which `catch (Exception)`
+            // used to let escape and kill the whole app process
+            Timber.e(throwable, "[MCP] Failed to handle connection")
         } finally {
             runCatching { client.close() }
         }
@@ -194,12 +207,15 @@ internal class McpHttpServer(
 
         sessions[session.id] = session
 
-        writeSseHeaders(output)
-        writeEvent(output, EVENT_ENDPOINT, "/messages?sessionId=${session.id}")
-
-        Timber.d("[MCP] SSE opened, sessionId=${session.id}")
-
         try {
+            // Both writes are inside try: they used to sit outside, so a client that
+            // disconnected immediately left a session in the map forever and every later
+            // POST kept pushing responses into a channel nobody reads
+            writeSseHeaders(output)
+            writeEvent(output, EVENT_ENDPOINT, "/messages?sessionId=${session.id}")
+
+            Timber.d("[MCP] SSE opened, sessionId=${session.id}")
+
             while (running.get()) {
                 val response = withTimeoutOrNull(SSE_KEEPALIVE_MS) { session.channel.receive() }
 
@@ -210,8 +226,10 @@ internal class McpHttpServer(
                     writeEvent(output, EVENT_MESSAGE, gson.toJson(response))
                 }
             }
-        } catch (e: Exception) {
-            Timber.d("[MCP] SSE closed for ${session.id}: ${e.message}")
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+
+            Timber.d("[MCP] SSE closed for ${session.id}: ${throwable.message}")
         } finally {
             sessions.remove(session.id)
             session.channel.close()
@@ -409,7 +427,9 @@ internal class McpHttpServer(
 
         Timber.d("[MCP] GET /logs")
 
-        val lines = Channel<McpLogLine>(Channel.UNLIMITED)
+        // Bounded: a slow client used to grow an UNLIMITED channel for as long as it stayed
+        // connected, which could end in an OOM
+        val lines = Channel<McpLogLine>(capacity = 1024, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
         val collecting = scope.launch {
             var knownIds: Set<Long>? = null
@@ -419,13 +439,14 @@ internal class McpHttpServer(
                     val known = knownIds
 
                     val fresh = if (known == null) {
-                        knownIds = batch.map { it.id }.toSet()
-
                         emptyList()
                     } else {
                         batch.filter { it.id !in known }
-                            .also { newLines -> knownIds = known + newLines.map { it.id } }
                     }
+
+                    // Keep only the current snapshot instead of every id ever seen: the old
+                    // accumulating set grew without bound for the whole connection
+                    knownIds = batch.map { it.id }.toSet()
 
                     fresh.forEach { line -> lines.send(McpLogLine.from(line)) }
                 }
@@ -443,8 +464,10 @@ internal class McpHttpServer(
                     writeEvent(output, EVENT_MESSAGE, gson.toJson(line))
                 }
             }
-        } catch (e: Exception) {
-            Timber.d("[MCP] /logs stream closed: ${e.message}")
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+
+            Timber.d("[MCP] /logs stream closed: ${throwable.message}")
         } finally {
             collecting.cancel()
             lines.close()
@@ -697,6 +720,10 @@ internal class McpHttpServer(
             }
 
             if (byte != '\r'.code) {
+                // A request line / header without a newline used to grow this buffer until
+                // the process ran out of memory. Refuse the connection instead.
+                if (buffer.size() >= MAX_LINE_BYTES) return null
+
                 buffer.write(byte)
             }
         }
@@ -717,9 +744,9 @@ internal class McpHttpServer(
             append("Content-Type: ").append(contentType).append("\r\n")
             append("Content-Length: ").append(body.size).append("\r\n")
             append("Connection: close\r\n")
-            append("Access-Control-Allow-Origin: *\r\n")
-            append("Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n")
-            append("Access-Control-Allow-Headers: Content-Type\r\n")
+            // No Access-Control-Allow-Origin: a wildcard let any web page opened on the
+            // device read the whole logcat stream (and clear it) via fetch(). Native MCP
+            // clients do not need CORS, browsers must not get through.
             append("\r\n")
         }
 
@@ -742,7 +769,6 @@ internal class McpHttpServer(
             append("Content-Type: text/event-stream\r\n")
             append("Cache-Control: no-cache\r\n")
             append("Connection: keep-alive\r\n")
-            append("Access-Control-Allow-Origin: *\r\n")
             append("\r\n")
         }
 
@@ -827,6 +853,7 @@ internal class McpHttpServer(
         private const val SSE_KEEPALIVE_MS = 15_000L
         private const val MAX_BODY_BYTES = 4 * 1024 * 1024
         private const val MAX_HEADERS = 100
+        private const val MAX_LINE_BYTES = 8 * 1024
         private const val STREAM_TIMEOUT_MS = 10_000L
 
         private val ENDPOINTS = listOf(

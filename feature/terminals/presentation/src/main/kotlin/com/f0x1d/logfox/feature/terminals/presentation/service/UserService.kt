@@ -31,6 +31,9 @@ class UserService() : IUserService.Stub() {
     private companion object {
         // A shell command that never exits must not pin a binder thread forever
         const val EXECUTE_TIMEOUT_MS = 60_000L
+
+        // Shutdown must always finish, even if a pipe coroutine is stuck in read()
+        const val DESTROY_TIMEOUT_MS = 2_000L
     }
 
     private val latestId = AtomicLong(0L)
@@ -44,11 +47,17 @@ class UserService() : IUserService.Stub() {
     constructor(context: Context) : this()
 
     override fun destroy() {
-        serviceScope.cancel()
-        runBlocking { serviceScopeJob.join() }
+        // Kill the children BEFORE joining: their pipe coroutines block inside
+        // InputStream.read(), which cannot be interrupted by cancellation, so join() would
+        // wait forever and exitProcess() would never run - leaking the :service process
+        currentProcesses.values.forEach { process -> process.tryDestroy() }
+        currentProcesses.clear()
 
-        currentProcesses.values.forEach { process ->
-            process.tryDestroy()
+        serviceScope.cancel()
+
+        runBlocking {
+            // Bounded on purpose: never hang a binder thread on shutdown
+            withTimeoutOrNull(DESTROY_TIMEOUT_MS) { serviceScopeJob.join() }
         }
 
         exitProcess(0)

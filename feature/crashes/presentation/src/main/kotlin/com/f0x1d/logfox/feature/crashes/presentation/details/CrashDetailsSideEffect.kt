@@ -45,4 +45,5 @@ internal sealed interface CrashDetailsSideEffect {
     data object Close : CrashDetailsSideEffect
     data class LaunchFileExportPicker(val filename: String) : CrashDetailsSideEffect
     data class LaunchZipExportPicker(val filename: String) : CrashDetailsSideEffect
+    data class ExportFailed(val message: String?) : CrashDetailsSideEffect
 }

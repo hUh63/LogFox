@@ -35,11 +35,25 @@ internal class AppsPickerReducer @Inject constructor() : Reducer<AppsPickerState
         }
 
         is AppsPickerCommand.AppsLoaded -> {
-            state.copy(
+            val loaded = state.copy(
                 apps = command.apps,
                 searchedApps = command.apps,
                 isLoading = false,
-            ).noSideEffects()
+            )
+
+            // A query typed while the package list was still loading must survive: blindly
+            // overwriting searchedApps with the full list showed unrelated apps while the
+            // search box kept the text, so the user could pick the wrong package
+            if (loaded.query.isNullOrBlank()) {
+                loaded.noSideEffects()
+            } else {
+                loaded.withSideEffects(
+                    AppsPickerSideEffect.FilterApps(
+                        query = loaded.query.orEmpty(),
+                        apps = command.apps,
+                    ),
+                )
+            }
         }
 
         is AppsPickerCommand.SearchedAppsUpdated -> {
