@@ -60,18 +60,24 @@ internal abstract class BaseCrashDataSource(
     }
 
     private suspend fun emitCrashIfValid() {
-        filterLines(collectedLines)
+        try {
+            filterLines(collectedLines)
 
-        if (collectedLines.isNotEmpty()) {
-            val crash = createAppCrash(
-                packageName = extractPackageName(collectedLines),
-                lines = collectedLines,
-            )
-            crashCollectorDataSource.collectCrash(crash, collectedLines.toList())
+            if (collectedLines.isNotEmpty()) {
+                val crash = createAppCrash(
+                    packageName = extractPackageName(collectedLines),
+                    lines = collectedLines,
+                )
+                crashCollectorDataSource.collectCrash(crash, collectedLines.toList())
+            }
+        } finally {
+            // Always reset. A single failure used to leave `collecting` stuck on true, so no
+            // crash was detected again for the rest of the process and `collectedLines`
+            // kept growing without bound.
+            collecting = false
+            firstLine = null
+            collectedLines.clear()
         }
-
-        collecting = false
-        firstLine = null
     }
 
     private fun createAppCrash(

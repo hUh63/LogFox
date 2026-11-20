@@ -49,6 +49,9 @@ internal class LogsFragment :
 
     override val viewModel by viewModels<LogsViewModel>()
 
+    /** Last [LogsViewState.listRevision] handed to the adapter. */
+    private var lastListRevision = -1L
+
     private val levelButtons by lazy {
         listOf(
             binding.levelV to LogLevel.VERBOSE,
@@ -112,19 +115,21 @@ internal class LogsFragment :
             }
         }
 
-        levelButtons.forEach { (button, _) ->
+        levelButtons.forEach { (button, level) ->
             button.setOnClickListener {
-                // MaterialButton toggles itself in performClick() before this listener runs,
-                // so isChecked already holds the new state. Do NOT flip it manually here:
-                // doing that cancelled the toggle and the filter never changed.
-                val levels = levelButtons.filter { it.first.isChecked }.map { it.second }.toSet()
+                // The store is the single source of truth: a level button is only a view of
+                // LogsState.levelFilters. MaterialButton must never toggle itself
+                // (app:toggleCheckedStateOnClick="false"), otherwise its highlight changes
+                // while the list stays unfiltered - which is exactly what used to happen.
+                val current = viewModel.state.value.levelFilters
+                val next = if (level in current) current - level else current + level
 
-                send(LogsCommand.SetLevelFilter(levels))
+                send(LogsCommand.ToggleLevelFilter(level))
 
-                if (levels.isEmpty()) {
+                if (next.isEmpty()) {
                     snackbar(Strings.level_filter_all)
                 } else {
-                    snackbar(Strings.level_filter_active, levels.joinToString(" ") { it.letter })
+                    snackbar(Strings.level_filter_active, next.joinToString(" ") { it.letter })
                 }
             }
         }
@@ -222,7 +227,9 @@ internal class LogsFragment :
             if (button.isChecked != checked) button.isChecked = checked
         }
 
-        if (state.logsChanged) {
+        if (state.logsChanged || state.listRevision != lastListRevision) {
+            lastListRevision = state.listRevision
+
             binding.updateLogsList(
                 items = state.logs,
                 paused = state.paused,

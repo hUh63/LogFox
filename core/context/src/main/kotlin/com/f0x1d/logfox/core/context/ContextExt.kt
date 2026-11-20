@@ -29,13 +29,24 @@ val Context.activityManager get() = getSystemService<ActivityManager>()!!
 
 fun Context.hardRestartApp() {
     // Never crash while restarting: this runs right after the first Shizuku
-    // authorization, where any failure looks like "the app closed itself"
-    runCatching {
-        for (task in activityManager.appTasks) task.finishAndRemoveTask()
-    }
+    // authorization, where any failure looks like "the app closed itself".
+    val launchIntent = runCatching {
+        packageManager.getLaunchIntentForPackage(packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+    }.getOrNull()
+
+    val restarted = launchIntent != null && runCatching {
+        startActivity(launchIntent)
+        true
+    }.getOrDefault(false)
+
+    // Only kill the process when a replacement activity was really started. Killing it
+    // unconditionally is what made the app vanish after the first authorization whenever
+    // the launch intent was missing or blocked by background-start restrictions.
+    if (!restarted) return
 
     runCatching {
-        packageManager.getLaunchIntentForPackage(packageName)?.let(::startActivity)
+        for (task in activityManager.appTasks) task.finishAndRemoveTask()
     }
 
     exitProcess(0)

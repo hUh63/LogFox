@@ -15,4 +15,5 @@ internal data class LogsViewState(
     val selecting: Boolean,
     val selectedCount: Int,
     val resumeLoggingWithBottomTouch: Boolean,
+    val listRevision: Long,
 )

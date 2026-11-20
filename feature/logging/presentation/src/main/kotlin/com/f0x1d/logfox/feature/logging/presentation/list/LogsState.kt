@@ -20,4 +20,13 @@ internal data class LogsState(
     val textSize: Int,
     val logsChanged: Boolean,
     val resumeLoggingWithBottomTouch: Boolean,
+    /**
+     * Monotonic counter bumped by every command that can change the *visible* list.
+     *
+     * [logsChanged] alone was not reliable: commands like [LogsCommand.Pause] set it back to
+     * `false`, so a level-button tap could be followed by a list submit that never happened.
+     * A counter can only grow, so the fragment can always tell whether the list it shows is
+     * up to date.
+     */
+    val listRevision: Long = 0L,
 )

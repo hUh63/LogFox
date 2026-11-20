@@ -27,6 +27,7 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
                         filters = command.filters,
                         showLogValues = command.showLogValues,
                         logsChanged = true,
+                        listRevision = state.listRevision + 1,
                     ).noSideEffects()
                 } else {
                     state.noSideEffects()
@@ -39,6 +40,7 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
                     filters = command.filters,
                     showLogValues = command.showLogValues,
                     logsChanged = true,
+                    listRevision = state.listRevision + 1,
                 ).noSideEffects()
             }
         }
@@ -218,7 +220,25 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
         }
 
         is LogsCommand.SetLevelFilter -> {
-            state.copy(levelFilters = command.levels, logsChanged = true).noSideEffects()
+            state.copy(
+                levelFilters = command.levels,
+                logsChanged = true,
+                listRevision = state.listRevision + 1,
+            ).noSideEffects()
+        }
+
+        is LogsCommand.ToggleLevelFilter -> {
+            val levels = if (command.level in state.levelFilters) {
+                state.levelFilters - command.level
+            } else {
+                state.levelFilters + command.level
+            }
+
+            state.copy(
+                levelFilters = levels,
+                logsChanged = true,
+                listRevision = state.listRevision + 1,
+            ).noSideEffects()
         }
 
         is LogsCommand.LogcatSilentFound -> {

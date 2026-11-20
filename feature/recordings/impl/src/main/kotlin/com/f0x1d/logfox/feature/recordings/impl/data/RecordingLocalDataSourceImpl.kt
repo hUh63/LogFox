@@ -107,23 +107,28 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
 
     override suspend fun end(): LogRecording? = withContext(ioDispatcher) {
         state.update { RecordingState.SAVING }
-        stopFiltersCollection()
-        dumpLines()
-        notificationsLocalDataSource.cancelRecordingNotification()
 
-        val file = recordingFile ?: return@withContext null
+        try {
+            stopFiltersCollection()
+            dumpLines()
+            notificationsLocalDataSource.cancelRecordingNotification()
 
-        val logRecording = LogRecording(
-            title = "${context.getString(Strings.record_file)} ${logRecordingDataSource.count() + 1}",
-            dateAndTime = recordingTime,
-            file = file,
-        ).let {
-            it.copy(id = logRecordingDataSource.insert(it.toEntity()))
+            val file = recordingFile ?: return@withContext null
+
+            LogRecording(
+                title = "${context.getString(Strings.record_file)} ${logRecordingDataSource.count() + 1}",
+                dateAndTime = recordingTime,
+                file = file,
+            ).let {
+                it.copy(id = logRecordingDataSource.insert(it.toEntity()))
+            }
+        } finally {
+            // Leaving the state at SAVING on any failure (missing file, disk full, DB error)
+            // used to freeze recording for the rest of the process: every new line was
+            // dropped and the button only ever tried to "end" an already broken session.
+            recordingFile = null
+            state.update { RecordingState.IDLE }
         }
-
-        state.update { RecordingState.IDLE }
-
-        return@withContext logRecording
     }
 
     override suspend fun loggingStopped(): Unit = withContext(ioDispatcher) {

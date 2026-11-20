@@ -75,4 +75,10 @@ internal sealed interface LogsCommand {
     data class LogcatSilentFound(val property: String?) : LogsCommand
 
     data class SetLevelFilter(val levels: Set<LogLevel>) : LogsCommand
+
+    /**
+     * Toggles exactly one level. The reducer derives the new set from the current state,
+     * so the UI never has to trust the (possibly stale) visual state of the buttons.
+     */
+    data class ToggleLevelFilter(val level: LogLevel) : LogsCommand
 }

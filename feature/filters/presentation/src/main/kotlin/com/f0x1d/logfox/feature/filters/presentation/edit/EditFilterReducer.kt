@@ -4,6 +4,7 @@ import com.f0x1d.logfox.core.tea.ReduceResult
 import com.f0x1d.logfox.core.tea.Reducer
 import com.f0x1d.logfox.core.tea.noSideEffects
 import com.f0x1d.logfox.core.tea.withSideEffects
+import com.f0x1d.logfox.feature.filters.api.model.UserFilter
 import com.f0x1d.logfox.feature.filters.presentation.edit.di.EditFilterArgs
 import com.f0x1d.logfox.feature.logging.api.model.LogLevel
 import javax.inject.Inject
@@ -130,10 +131,13 @@ internal class EditFilterReducer @Inject constructor(
         }
 
         is EditFilterCommand.Export -> {
+            // Export what is on screen right now. `state.filter` is only the snapshot loaded
+            // when the screen opened, so after auto-save edits it was stale (and for a brand
+            // new filter it was even null, which exported nothing at all).
             state.withSideEffects(
                 EditFilterSideEffect.ExportFilter(
                     uri = command.uri,
-                    filter = state.filter,
+                    filter = state.toCurrentFilter(),
                 ),
             )
         }
@@ -143,8 +147,20 @@ internal class EditFilterReducer @Inject constructor(
         }
 
         is EditFilterCommand.AttemptClose -> {
-            // No save button anymore: leaving the screen persists the filter (F0x1d/LogFox#261)
-            state.withSideEffects(EditFilterSideEffect.SaveAndClose(state.toSaveFilterEffect()))
+            // No save button anymore: leaving the screen persists the filter (F0x1d/LogFox#261).
+            // A brand new filter with nothing filled in must not be created though - an empty
+            // "including" filter matches every line and used to quietly disable the others.
+            when {
+                state.filter != null -> {
+                    state.withSideEffects(EditFilterSideEffect.SaveAndClose(state.toSaveFilterEffect()))
+                }
+
+                state.hasMeaningfulContent() -> {
+                    state.withSideEffects(EditFilterSideEffect.SaveAndClose(state.toSaveFilterEffect()))
+                }
+
+                else -> state.withSideEffects(EditFilterSideEffect.Close)
+            }
         }
 
         is EditFilterCommand.AttemptCloseConfirmed -> {
@@ -174,6 +190,32 @@ internal class EditFilterReducer @Inject constructor(
         tagRegex = tagRegex,
         contentRegex = contentRegex,
     )
+
+    private fun EditFilterState.toCurrentFilter() = UserFilter(
+        id = filter?.id ?: 0L,
+        name = name,
+        including = including,
+        allowedLevels = enabledLogLevels.toEnabledLogLevels(),
+        uid = uid,
+        pid = pid,
+        tid = tid,
+        packageName = packageName,
+        tag = tag,
+        content = content,
+        tagRegex = tagRegex,
+        contentRegex = contentRegex,
+        enabled = enabled,
+    )
+
+    private fun EditFilterState.hasMeaningfulContent(): Boolean =
+        !name.isNullOrBlank() ||
+            !uid.isNullOrBlank() ||
+            !pid.isNullOrBlank() ||
+            !tid.isNullOrBlank() ||
+            !packageName.isNullOrBlank() ||
+            !tag.isNullOrBlank() ||
+            !content.isNullOrBlank() ||
+            enabledLogLevels.any { it }
 
     private val EditFilterCommand.isFieldEdit: Boolean
         get() = when (this) {

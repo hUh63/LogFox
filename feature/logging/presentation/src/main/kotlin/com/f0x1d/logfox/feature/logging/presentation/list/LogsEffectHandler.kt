@@ -17,6 +17,7 @@ import com.f0x1d.logfox.feature.preferences.api.domain.logs.GetLogsTextSizeFlowU
 import com.f0x1d.logfox.feature.preferences.api.domain.logs.GetResumeLoggingWithBottomTouchFlowUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.service.GetLogFileExtensionUseCase
 import com.f0x1d.logfox.feature.recordings.api.domain.CreateRecordingFromLinesUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 
@@ -61,7 +62,13 @@ internal class LogsEffectHandler @Inject constructor(
                         showLogValues = showLogValues,
                     )
                 }.collect { command ->
-                    onCommand(command)
+                    // One bad emission (dirty row, formatter failure, ...) must not kill the
+                    // only collector of the screen: without this the log list froze forever.
+                    runCatching { onCommand(command) }
+                        .onFailure { throwable ->
+                            if (throwable is CancellationException) throw throwable
+                            throwable.printStackTrace()
+                        }
                 }
             }
 
@@ -77,7 +84,11 @@ internal class LogsEffectHandler @Inject constructor(
                         logsExpanded = logsExpanded,
                     )
                 }.collect { command ->
-                    onCommand(command)
+                    runCatching { onCommand(command) }
+                        .onFailure { throwable ->
+                            if (throwable is CancellationException) throw throwable
+                            throwable.printStackTrace()
+                        }
                 }
             }
 

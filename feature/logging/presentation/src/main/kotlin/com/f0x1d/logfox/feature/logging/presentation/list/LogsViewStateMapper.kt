@@ -47,6 +47,7 @@ internal class LogsViewStateMapper @Inject constructor(
             selecting = state.selectedIds.isNotEmpty(),
             selectedCount = state.selectedIds.size,
             resumeLoggingWithBottomTouch = state.resumeLoggingWithBottomTouch,
+            listRevision = state.listRevision,
         )
     }
 }
