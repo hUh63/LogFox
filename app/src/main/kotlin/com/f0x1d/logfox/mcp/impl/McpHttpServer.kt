@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.BufferedInputStream
@@ -67,6 +68,11 @@ internal class McpHttpServer(
     private val running = AtomicBoolean(false)
     private val sessions = ConcurrentHashMap<String, McpSession>()
     private val clientSemaphore = Semaphore(MAX_CLIENTS)
+
+    // Connection count alone was not enough: one client could fire hundreds of concurrent
+    // tools/call requests on a single connection (read_logs collects 5 s of live output)
+    // and exhaust the shared IO pool
+    private val requestSemaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
 
     private var serverSocket: ServerSocket? = null
 
@@ -293,14 +299,16 @@ internal class McpHttpServer(
         writeResponse(output, "202 Accepted", CONTENT_TYPE_TEXT, "Accepted".toByteArray())
 
         scope.launch {
-            try {
-                val response = handleJsonRpc(message)
+            requestSemaphore.withPermit {
+                try {
+                    val response = handleJsonRpc(message)
 
-                if (response != null) {
-                    session.channel.send(response)
+                    if (response != null) {
+                        session.channel.send(response)
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "[MCP] Failed to send to $sessionId")
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "[MCP] Failed to send to $sessionId")
             }
         }
     }
@@ -875,6 +883,7 @@ internal class McpHttpServer(
         private const val MAX_LINE_BYTES = 8 * 1024
         private const val SOCKET_TIMEOUT_MS = 15_000
         private const val MAX_CLIENTS = 32
+        private const val MAX_CONCURRENT_REQUESTS = 8
         private const val STREAM_TIMEOUT_MS = 10_000L
 
         private val ENDPOINTS = listOf(

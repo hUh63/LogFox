@@ -145,3 +145,13 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | MCP `dataSync` foreground service hit the Android 15 six-hour cap and crashed the process | `specialUse` type with a subtype property |
 | MCP SSE session buffered responses without limit (slow/non-reading client could OOM the service) | Bounded channel (256, drop oldest) |
 | Filter import could not tell "unreadable file" from "empty file", and import/export failures were silent | Null content is a failure; both paths show a toast |
+## 1.9 — remaining follow-ups
+
+| Problem | Fix |
+|---------|-----|
+| Crash details: every retrace mapping import/clear added one more permanent `LoadCrash` collector (each later DB write re-read and retraced the log once per leaked collector) | Mapping changes use a one-shot `ReloadCrash`; the live collector is created once per screen |
+| Crash details: search ran `lowercase()` + full scan of the whole log **on the main thread**, freezing the UI on multi-megabyte ANRs, and could create tens of thousands of highlight spans | Matching moved to a background dispatcher, capped at 1000 matches, results tagged with the query so a stale result cannot overwrite the current one |
+| Filter editor: auto-save wrote to Room on every keystroke | Debounced (400 ms, latest snapshot only); "save and close" flushes immediately |
+| Filter editor: two fast back presses saved twice — the filter was created twice and `Close` popped both the editor and the list | `SaveAndClose` is handled once (atomic guard), later taps are ignored |
+| MCP: one connection could fire unlimited concurrent `tools/call` requests (read_logs collects 5 s of live output) and exhaust the shared IO pool | Request-level semaphore (8) in addition to the connection limit |
+| MCP: notification claimed "running on port N" even when the port was busy and nothing was listening | Start result is checked and the notification switches to a failure text |

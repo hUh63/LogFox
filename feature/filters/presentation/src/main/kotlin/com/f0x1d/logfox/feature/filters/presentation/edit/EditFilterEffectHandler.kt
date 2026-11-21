@@ -5,11 +5,19 @@ import com.f0x1d.logfox.feature.filters.api.domain.CreateFilterUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.ExportFiltersToUriUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.GetFilterByIdFlowUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.UpdateFilterUseCase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 internal class EditFilterEffectHandler @Inject constructor(
@@ -24,6 +32,18 @@ internal class EditFilterEffectHandler @Inject constructor(
     // Only the newest snapshot is allowed to be written, and writes are serialized.
     private val saveMutex = Mutex()
     private val saveVersion = AtomicLong(0L)
+
+    // Auto-save used to write on every keystroke: typing 30 characters meant 30 Room
+    // UPDATEs and 30 state emissions. Snapshots are coalesced now and only the latest one
+    // is written, with an immediate flush when the screen is closed.
+    private val pendingSave = AtomicReference<EditFilterSideEffect.SaveFilter?>(null)
+    private val debounceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val debounceMutex = Mutex()
+    private var debounceJob: Job? = null
+
+    // Two fast "back" taps used to run SaveAndClose twice: the filter was created twice and
+    // Close was emitted twice, popping both the editor and the filter list
+    private val closeRequested = AtomicBoolean(false)
 
     override suspend fun handle(
         effect: EditFilterSideEffect,
@@ -42,26 +62,21 @@ internal class EditFilterEffectHandler @Inject constructor(
             }
 
             is EditFilterSideEffect.SaveAndClose -> {
-                handle(EditFilterSideEffect.SaveFilter(
-                    filter = effect.save.filter,
-                    name = effect.save.name,
-                    including = effect.save.including,
-                    enabled = effect.save.enabled,
-                    enabledLogLevels = effect.save.enabledLogLevels,
-                    uid = effect.save.uid,
-                    pid = effect.save.pid,
-                    tid = effect.save.tid,
-                    packageName = effect.save.packageName,
-                    tag = effect.save.tag,
-                    content = effect.save.content,
-                    tagRegex = effect.save.tagRegex,
-                    contentRegex = effect.save.contentRegex,
-                )) { cmd -> onCommand(cmd) }
+                if (!closeRequested.compareAndSet(false, true)) return
+
+                // Write the final snapshot right away, skipping the debounce window
+                pendingSave.set(null)
+                save(effect.save.copy())
 
                 onCommand(EditFilterCommand.SavedAndClose)
             }
 
-            is EditFilterSideEffect.SaveFilter -> save(effect)
+            is EditFilterSideEffect.SaveFilter -> {
+                if (closeRequested.get()) return
+
+                pendingSave.set(effect)
+                scheduleDebouncedSave()
+            }
 
             is EditFilterSideEffect.ExportFilter -> {
                 exportFiltersToUriUseCase(effect.uri, listOfNotNull(effect.filter))
@@ -72,6 +87,27 @@ internal class EditFilterEffectHandler @Inject constructor(
             is EditFilterSideEffect.Close -> Unit
             is EditFilterSideEffect.ConfirmDiscard -> Unit
         }
+    }
+
+    private fun scheduleDebouncedSave() {
+        debounceScope.launch {
+            debounceMutex.withLock {
+                debounceJob?.cancel()
+
+                val job = launch {
+                    delay(SAVE_DEBOUNCE_MS)
+                    flushPendingSave()
+                }
+
+                debounceJob = job
+            }
+        }
+    }
+
+    private suspend fun flushPendingSave() {
+        val effect = pendingSave.getAndSet(null) ?: return
+
+        save(effect)
     }
 
     private suspend fun save(effect: EditFilterSideEffect.SaveFilter) {
@@ -115,5 +151,9 @@ internal class EditFilterEffectHandler @Inject constructor(
                 )
             }
         }
+    }
+
+    private companion object {
+        const val SAVE_DEBOUNCE_MS = 400L
     }
 }

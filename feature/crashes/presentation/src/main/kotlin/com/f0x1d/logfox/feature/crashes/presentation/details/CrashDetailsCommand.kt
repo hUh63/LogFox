@@ -50,6 +50,8 @@ internal sealed interface CrashDetailsCommand {
 
     data class SearchInLog(val query: String) : CrashDetailsCommand
 
+    data class SearchMatchesFound(val query: String, val ranges: List<IntRange>) : CrashDetailsCommand
+
     data object ShowReplaceDialog : CrashDetailsCommand
 
     data class ApplyReplace(val find: String, val replaceWith: String) : CrashDetailsCommand

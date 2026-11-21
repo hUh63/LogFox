@@ -15,6 +15,10 @@ internal sealed interface CrashDetailsSideEffect {
 
     data object ClearMappingStored : CrashDetailsSideEffect
 
+    data object ReloadCrash : CrashDetailsSideEffect
+
+    data class FindInLog(val query: String, val text: String) : CrashDetailsSideEffect
+
     data class MappingImported(val success: Boolean) : CrashDetailsSideEffect
 
     data object ObservePreferences : CrashDetailsSideEffect

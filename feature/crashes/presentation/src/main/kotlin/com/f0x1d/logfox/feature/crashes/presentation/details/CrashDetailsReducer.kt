@@ -32,7 +32,7 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
             mappingAvailable = command.success || state.mappingAvailable,
         ).withSideEffects(
             CrashDetailsSideEffect.MappingImported(command.success),
-            CrashDetailsSideEffect.LoadCrash,
+            CrashDetailsSideEffect.ReloadCrash,
         )
 
         is CrashDetailsCommand.ClearMappingClicked -> state.withSideEffects(
@@ -42,7 +42,7 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
         is CrashDetailsCommand.MappingCleared -> state.copy(
             mappingAvailable = false,
         ).withSideEffects(
-            CrashDetailsSideEffect.LoadCrash,
+            CrashDetailsSideEffect.ReloadCrash,
         )
 
         is CrashDetailsCommand.ExportFailed -> state.withSideEffects(
@@ -233,24 +233,30 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
         }
 
         is CrashDetailsCommand.SearchInLog -> {
-            val query = command.query
-            val crashLog = state.crashLog.orEmpty()
-            val ranges = if (query.isNotEmpty()) {
-                val lowerLog = crashLog.lowercase(java.util.Locale.ENGLISH)
-                val lowerQuery = query.lowercase(java.util.Locale.ENGLISH)
-                buildList {
-                    var index = 0
-                    while (true) {
-                        index = lowerLog.indexOf(lowerQuery, index)
-                        if (index == -1) break
-                        add(index until index + lowerQuery.length)
-                        index += lowerQuery.length
-                    }
-                }
+            // Matching is done off the main thread: the reducer runs synchronously from the
+            // SearchView callback, and lowercasing + scanning a multi-megabyte ANR log froze
+            // the UI on every keystroke
+            if (command.query.isEmpty()) {
+                state.copy(searchQuery = command.query, searchMatchRanges = emptyList())
+                    .noSideEffects()
             } else {
-                emptyList()
+                state.copy(searchQuery = command.query)
+                    .withSideEffects(
+                        CrashDetailsSideEffect.FindInLog(
+                            query = command.query,
+                            text = state.crashLog.orEmpty(),
+                        ),
+                    )
             }
-            state.copy(searchQuery = query, searchMatchRanges = ranges).noSideEffects()
+        }
+
+        is CrashDetailsCommand.SearchMatchesFound -> {
+            // Results can arrive out of order; only the current query may update the ranges
+            if (command.query != state.searchQuery) {
+                state.noSideEffects()
+            } else {
+                state.copy(searchMatchRanges = command.ranges).noSideEffects()
+            }
         }
     }
 

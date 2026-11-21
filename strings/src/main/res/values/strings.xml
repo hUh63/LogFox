@@ -234,4 +234,5 @@
     <string name="mapping_import_failed">Could not read the mapping file</string>
     <string name="filters_import_failed">Could not import filters from the selected file</string>
     <string name="filters_export_failed">Could not export filters</string>
+    <string name="mcp_server_notification_failed">MCP server could not start on port %1$d (port may be in use)</string>
 </resources>

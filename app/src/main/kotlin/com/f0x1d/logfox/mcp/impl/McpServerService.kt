@@ -4,6 +4,7 @@ import android.app.Notification
 import android.content.Intent
 import android.content.SharedPreferences
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
@@ -46,6 +47,10 @@ class McpServerService : LifecycleService() {
 
     @Inject
     lateinit var mainActivityPendingIntentProvider: MainActivityPendingIntentProvider
+
+    // The notification used to claim "running on port N" even when the port was busy and
+    // nothing was listening, so the user could not tell a failed start from a working one
+    private var startFailed = false
 
     override fun onCreate() {
         super.onCreate()
@@ -124,8 +129,16 @@ class McpServerService : LifecycleService() {
     }
 
     private suspend fun startServer() {
-        runCatching { mcpServerManager.start(configuredPort()) }
+        val started = runCatching { mcpServerManager.start(configuredPort()) }
             .onFailure { Timber.e(it, "[MCP] Failed to start server") }
+            .isSuccess && mcpServerManager.isRunning
+
+        startFailed = !started
+
+        runCatching {
+            NotificationManagerCompat.from(this)
+                .notify(NOTIFICATION_ID, notification())
+        }
     }
 
     private suspend fun stopServer() {
@@ -144,7 +157,13 @@ class McpServerService : LifecycleService() {
     private fun notification(): Notification =
         NotificationCompat.Builder(this, MCP_SERVER_CHANNEL_ID)
             .setContentTitle(getString(Strings.mcp_server_notification_title))
-            .setContentText(getString(Strings.mcp_server_notification_text, configuredPort()))
+            .setContentText(
+                if (startFailed) {
+                    getString(Strings.mcp_server_notification_failed, configuredPort())
+                } else {
+                    getString(Strings.mcp_server_notification_text, configuredPort())
+                },
+            )
             .setSmallIcon(Icons.ic_logfox)
             .setOngoing(true)
             .setContentIntent(mainActivityPendingIntentProvider.provide(OPEN_APP_INTENT_ID))

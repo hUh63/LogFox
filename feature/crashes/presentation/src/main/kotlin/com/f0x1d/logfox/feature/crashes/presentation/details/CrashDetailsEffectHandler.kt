@@ -1,5 +1,6 @@
 package com.f0x1d.logfox.feature.crashes.presentation.details
 
+import com.f0x1d.logfox.core.di.DefaultDispatcher
 import com.f0x1d.logfox.core.tea.EffectHandler
 import com.f0x1d.logfox.feature.crashes.api.domain.CheckAppDisabledUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.ClearMappingUseCase
@@ -16,8 +17,12 @@ import com.f0x1d.logfox.feature.preferences.api.domain.crashes.SetWrapCrashLogLi
 import com.f0x1d.logfox.feature.preferences.api.domain.logs.GetLogsTextSizeFlowUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.logs.SetLogsTextSizeUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.service.GetLogFileExtensionUseCase
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
+import java.util.Locale
 import javax.inject.Inject
 
 internal class CrashDetailsEffectHandler @Inject constructor(
@@ -49,6 +54,25 @@ internal class CrashDetailsEffectHandler @Inject constructor(
                         onCommand(CrashDetailsCommand.CrashLoaded(crash, crashLog))
                     }
                 }
+            }
+
+            is CrashDetailsSideEffect.ReloadCrash -> {
+                // One-shot. LoadCrash keeps collecting for the whole screen, so re-sending
+                // it on every mapping import/clear leaked one more permanent collector, and
+                // every later DB write re-read + retraced the log once per leaked collector
+                val value = getCrashAndLogByIdFlowUseCase(crashId).firstOrNull()
+
+                value?.let { (crash, crashLog) ->
+                    onCommand(CrashDetailsCommand.CrashLoaded(crash, crashLog))
+                }
+            }
+
+            is CrashDetailsSideEffect.FindInLog -> {
+                // Scanning a multi-megabyte log must not run on the main thread
+                val ranges = withContext(defaultDispatcher) {
+                    findMatches(effect.text, effect.query)
+                }
+                onCommand(CrashDetailsCommand.SearchMatchesFound(effect.query, ranges))
             }
 
             is CrashDetailsSideEffect.SetWrapCrashLogLines -> {
@@ -142,6 +166,35 @@ internal class CrashDetailsEffectHandler @Inject constructor(
             is CrashDetailsSideEffect.LaunchZipExportPicker -> Unit
             is CrashDetailsSideEffect.ExportFailed -> Unit
         }
+    }
+
+    private fun findMatches(text: String, query: String): List<IntRange> {
+        if (query.isEmpty() || text.isEmpty()) return emptyList()
+
+        val lowerText = text.lowercase(Locale.ENGLISH)
+        val lowerQuery = query.lowercase(Locale.ENGLISH)
+
+        if (lowerQuery.isEmpty()) return emptyList()
+
+        val ranges = ArrayList<IntRange>()
+        var index = 0
+
+        while (ranges.size < MAX_SEARCH_MATCHES) {
+            index = lowerText.indexOf(lowerQuery, index)
+
+            if (index == -1) break
+
+            ranges += index until index + lowerQuery.length
+            index += lowerQuery.length
+        }
+
+        return ranges
+    }
+
+    private companion object {
+        // Highlighting every occurrence of "at" in a big log meant tens of thousands of
+        // spans (dozens of MB of objects). 1000 is far beyond what anyone can scroll to
+        const val MAX_SEARCH_MATCHES = 1_000
     }
 
     private fun exportFilename(packageName: String, dateAndTime: Long, extension: String): String {
