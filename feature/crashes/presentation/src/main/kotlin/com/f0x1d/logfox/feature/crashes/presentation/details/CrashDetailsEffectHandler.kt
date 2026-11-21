@@ -41,6 +41,7 @@ internal class CrashDetailsEffectHandler @Inject constructor(
     private val setLogsTextSizeUseCase: SetLogsTextSizeUseCase,
     private val getLogFileExtensionUseCase: GetLogFileExtensionUseCase,
     private val dateTimeFormatter: DateTimeFormatter,
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : EffectHandler<CrashDetailsSideEffect, CrashDetailsCommand> {
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun handle(
