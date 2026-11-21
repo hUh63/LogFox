@@ -72,6 +72,7 @@ internal class FiltersEffectHandler @Inject constructor(
             // UI side effects - handled by Fragment
             is FiltersSideEffect.NavigateToEditFilter -> Unit
             is FiltersSideEffect.NavigateToCreateFilter -> Unit
+            is FiltersSideEffect.ShowMessage -> Unit
         }
     }
 }
