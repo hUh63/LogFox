@@ -57,7 +57,15 @@ internal class AppsPickerReducer @Inject constructor() : Reducer<AppsPickerState
         }
 
         is AppsPickerCommand.SearchedAppsUpdated -> {
-            state.copy(searchedApps = command.apps).noSideEffects()
+            // Results are computed off the main dispatcher and can complete out of order.
+            // Without the query echoed back, a slow result for an older query replaced the
+            // list while the search box already showed the newer text - the user could then
+            // select a package that does not match what was typed.
+            if (command.query != state.query) {
+                state.noSideEffects()
+            } else {
+                state.copy(searchedApps = command.apps).noSideEffects()
+            }
         }
 
         is AppsPickerCommand.AppClicked -> {

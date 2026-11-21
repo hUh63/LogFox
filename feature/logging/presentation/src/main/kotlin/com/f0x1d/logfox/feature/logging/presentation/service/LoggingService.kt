@@ -131,16 +131,25 @@ class LoggingService : LifecycleService() {
     private fun killApp() {
         Timber.d("killing app")
 
-        store.cancel()
-
-        activityManager.appTasks.forEach {
-            it.finishAndRemoveTask()
+        try {
+            // Every step is isolated and the store is cancelled last. Cancelling it first
+            // closed the side effect channel, so an exception from finishAndRemoveTask()
+            // or stopForeground() (OEM/Android 14 security checks) left a foreground
+            // service that advertised "recording" while collecting nothing, with the
+            // notification actions dead and exitProcess() never reached.
+            runCatching {
+                activityManager.appTasks.forEach {
+                    it.finishAndRemoveTask()
+                }
+            }
+            runCatching {
+                ServiceCompat.stopForeground(this@LoggingService, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            }
+            runCatching { stopSelf() }
+            runCatching { store.cancel() }
+        } finally {
+            exitProcess(0)
         }
-
-        ServiceCompat.stopForeground(this@LoggingService, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        stopSelf()
-
-        exitProcess(0)
     }
 
     override fun onDestroy() {

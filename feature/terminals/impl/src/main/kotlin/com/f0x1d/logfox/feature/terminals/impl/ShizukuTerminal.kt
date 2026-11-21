@@ -182,12 +182,35 @@ internal class ShizukuTerminal @Inject constructor(
         userService?.run {
             val processId = execute(command.joinToString(" "))
 
+            // Every binder call can return null (the :service process restarted, its
+            // process table was cleared, ...). Returning on the first null leaked the
+            // pipes already created AND left the logcat child running in the service
+            // process forever - the 10 s retry kept adding more of them.
+            val outputDescriptor = runCatching { processOutput(processId) }.getOrNull()
+            val errorDescriptor = runCatching { processError(processId) }.getOrNull()
+            val inputDescriptor = runCatching { processInput(processId) }.getOrNull()
+
+            if (outputDescriptor == null || errorDescriptor == null || inputDescriptor == null) {
+                listOfNotNull(outputDescriptor, errorDescriptor, inputDescriptor)
+                    .forEach { descriptor -> runCatching { descriptor.close() } }
+                runCatching { destroyProcess(processId) }
+
+                return@run null
+            }
+
+            val output = AutoCloseInputStream(outputDescriptor)
+            val error = AutoCloseInputStream(errorDescriptor)
+            val input = AutoCloseOutputStream(inputDescriptor)
+
             TerminalProcess(
-                output = AutoCloseInputStream(processOutput(processId) ?: return@run null),
-                error = AutoCloseInputStream(processError(processId) ?: return@run null),
-                input = AutoCloseOutputStream(processInput(processId) ?: return@run null),
+                output = output,
+                error = error,
+                input = input,
             ) {
-                destroyProcess(processId)
+                runCatching { input.close() }
+                runCatching { error.close() }
+                runCatching { output.close() }
+                runCatching { destroyProcess(processId) }
             }
         }
     }.getOrElse { throwable ->

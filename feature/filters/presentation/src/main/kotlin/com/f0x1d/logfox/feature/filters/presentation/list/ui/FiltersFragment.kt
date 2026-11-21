@@ -11,6 +11,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.f0x1d.logfox.core.tea.BaseStoreFragment
+import com.f0x1d.logfox.core.context.toast
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureClearDialog
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDeleteDialog
 import com.f0x1d.logfox.core.ui.view.setClickListenerOn
@@ -119,6 +120,10 @@ internal class FiltersFragment :
 
             is FiltersSideEffect.NavigateToCreateFilter -> {
                 findNavController().navigate(Directions.action_filtersFragment_to_editFilterFragment)
+            }
+
+            is FiltersSideEffect.ShowMessage -> {
+                requireContext().toast(sideEffect.messageRes)
             }
 
             // Business logic side effects - handled by EffectHandler

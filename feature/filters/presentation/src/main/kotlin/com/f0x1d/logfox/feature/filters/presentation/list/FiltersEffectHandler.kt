@@ -7,6 +7,7 @@ import com.f0x1d.logfox.feature.filters.api.domain.ExportFiltersToUriUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.GetAllFiltersFlowUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.ImportFiltersFromUriUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.SwitchFilterUseCase
+import com.f0x1d.logfox.feature.strings.Strings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -49,8 +50,18 @@ internal class FiltersEffectHandler @Inject constructor(
             }
 
             is FiltersSideEffect.ImportFilters -> importFiltersFromUriUseCase(effect.uri)
+                .onFailure { throwable ->
+                    if (throwable is CancellationException) throw throwable
+                    throwable.printStackTrace()
+                    onCommand(FiltersCommand.ShowMessage(Strings.filters_import_failed))
+                }
 
             is FiltersSideEffect.ExportAllFilters -> exportFiltersToUriUseCase(effect.uri, effect.filters)
+                .onFailure { throwable ->
+                    if (throwable is CancellationException) throw throwable
+                    throwable.printStackTrace()
+                    onCommand(FiltersCommand.ShowMessage(Strings.filters_export_failed))
+                }
 
             is FiltersSideEffect.SwitchFilter -> switchFilterUseCase(effect.filter, effect.checked)
 

@@ -16,11 +16,17 @@ internal class ImportFiltersFromUriUseCaseImpl @Inject constructor(
 ) : ImportFiltersFromUriUseCase {
 
     override suspend fun invoke(uri: Uri): Result<Unit> = runCatching {
-        val content = exportRepository.readContentFromUri(uri) ?: return@runCatching
+        // A null here means the URI could not be read at all. Treating it as success hid
+        // the failure: the user saw "nothing happened" and had no way to tell it apart
+        // from an empty file
+        val content = exportRepository.readContentFromUri(uri)
+            ?: error("Cannot read filters from $uri")
+
         val filters = gson.fromJson<List<UserFilter>>(
             content,
             object : TypeToken<List<UserFilter>>() {}.type,
-        )
+        ) ?: error("Empty filters payload in $uri")
+
         createAllFiltersUseCase(filters)
     }
 }

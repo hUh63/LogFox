@@ -37,13 +37,21 @@ class RecordingReceiver : BroadcastReceiver() {
     lateinit var mainDispatcher: CoroutineDispatcher
 
     override fun onReceive(context: Context, intent: Intent) {
+        // finish() takes a recording to disk and inserts the Room row. Without goAsync the
+        // process could be frozen the moment onReceive returned, losing the file and the
+        // database entry (the in-memory state then stayed "recording")
+        val pendingResult = goAsync()
         val scope = CoroutineScope(SupervisorJob() + mainDispatcher)
 
         scope.launch {
-            when (intent.action) {
-                ACTION_PAUSE_LOGGING -> pauseRecordingUseCase()
-                ACTION_RESUME_LOGGING -> resumeRecordingUseCase()
-                ACTION_STOP_LOGGING -> endRecordingUseCase()
+            try {
+                when (intent.action) {
+                    ACTION_PAUSE_LOGGING -> pauseRecordingUseCase()
+                    ACTION_RESUME_LOGGING -> resumeRecordingUseCase()
+                    ACTION_STOP_LOGGING -> endRecordingUseCase()
+                }
+            } finally {
+                pendingResult.finish()
             }
         }
     }

@@ -20,17 +20,30 @@ internal class AppsPickerEffectHandler @Inject constructor(
     ) {
         when (effect) {
             is AppsPickerSideEffect.LoadApps -> {
-                val apps = withContext(defaultDispatcher) {
-                    getInstalledAppsUseCase()
+                // A failed PackageManager call used to escape, so AppsLoaded was never sent
+                // and isLoading stayed true: the screen showed a spinner forever with no
+                // way out. Always resolve, an empty list at worst.
+                val apps = runCatching {
+                    withContext(defaultDispatcher) {
+                        getInstalledAppsUseCase()
+                    }
+                }.getOrElse { throwable ->
+                    throwable.printStackTrace()
+                    emptyList()
                 }
                 onCommand(AppsPickerCommand.AppsLoaded(apps))
             }
 
             is AppsPickerSideEffect.FilterApps -> {
-                val filteredApps = withContext(defaultDispatcher) {
-                    filterAppsUseCase(effect.query, effect.apps)
+                val filteredApps = runCatching {
+                    withContext(defaultDispatcher) {
+                        filterAppsUseCase(effect.query, effect.apps)
+                    }
+                }.getOrElse { throwable ->
+                    throwable.printStackTrace()
+                    emptyList()
                 }
-                onCommand(AppsPickerCommand.SearchedAppsUpdated(filteredApps))
+                onCommand(AppsPickerCommand.SearchedAppsUpdated(query = effect.query, apps = filteredApps))
             }
 
             // UI side effects are handled by Fragment

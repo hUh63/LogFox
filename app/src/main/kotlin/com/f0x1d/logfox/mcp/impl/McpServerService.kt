@@ -78,6 +78,15 @@ class McpServerService : LifecycleService() {
             ACTION_STOP_SERVER -> {
                 Timber.i("[MCP] Received stop server action, calling stopSelf()")
 
+                // Stopping from the notification also disables the server: otherwise
+                // Application.onCreate started it again on the next process start, so
+                // "stop" did not stick and there was no other way to turn it off
+                runCatching {
+                    preferences().edit()
+                        .putBoolean(PREF_MCP_SERVER_ENABLED, false)
+                        .apply()
+                }
+
                 lifecycleScope.launch {
                     stopServer()
 

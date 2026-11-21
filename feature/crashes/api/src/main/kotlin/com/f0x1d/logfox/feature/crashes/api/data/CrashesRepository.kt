@@ -22,5 +22,10 @@ interface CrashesRepository {
 
     suspend fun deleteAllByPackageName(packageName: String)
 
+    /**
+     * Physically removes crashes that have been soft-deleted for 30 days.
+     */
+    suspend fun clearDeletedIfNeeded()
+
     suspend fun clear()
 }

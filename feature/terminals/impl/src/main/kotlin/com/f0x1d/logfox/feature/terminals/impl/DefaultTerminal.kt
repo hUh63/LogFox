@@ -40,7 +40,14 @@ internal open class DefaultTerminal @Inject constructor(
             output = inputStream,
             error = errorStream,
             input = outputStream,
-            destroy = this::destroy,
+            destroy = {
+                // stdout is closed by the caller (bufferedReader().use), but stderr and
+                // stdin used to stay open: every collection restart leaked two file
+                // descriptors until exec() started failing with EMFILE
+                runCatching { errorStream.close() }
+                runCatching { outputStream.close() }
+                runCatching { destroy() }
+            },
         )
     }
 }

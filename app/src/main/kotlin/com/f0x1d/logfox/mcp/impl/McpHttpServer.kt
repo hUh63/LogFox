@@ -831,7 +831,10 @@ internal class McpHttpServer(
     private class McpSession(
         val id: String,
     ) {
-        val channel = Channel<JsonObject>(Channel.UNLIMITED)
+        // Bounded on purpose. A client that opens /sse and never reads it made the writing
+        // side block while responses piled up without limit (read_logs alone can be
+        // hundreds of KB), which could OOM the foreground service
+        val channel = Channel<JsonObject>(capacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     }
 
     private data class HttpRequest(

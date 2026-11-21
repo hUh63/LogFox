@@ -232,4 +232,6 @@
     <string name="clear_mapping">Retrace: forget mapping</string>
     <string name="mapping_imported">Mapping imported, stack traces are retraced</string>
     <string name="mapping_import_failed">Could not read the mapping file</string>
+    <string name="filters_import_failed">Could not import filters from the selected file</string>
+    <string name="filters_export_failed">Could not export filters</string>
 </resources>

@@ -23,7 +23,6 @@ internal class FiltersReducer @Inject constructor() : Reducer<FiltersState, Filt
         is FiltersCommand.Import -> {
             state.withSideEffects(FiltersSideEffect.ImportFilters(command.uri))
         }
-
         is FiltersCommand.ExportAll -> {
             state.withSideEffects(FiltersSideEffect.ExportAllFilters(command.uri, state.filters))
         }
@@ -46,6 +45,10 @@ internal class FiltersReducer @Inject constructor() : Reducer<FiltersState, Filt
 
         is FiltersCommand.CreateNewFilter -> {
             state.withSideEffects(FiltersSideEffect.NavigateToCreateFilter)
+        }
+
+        is FiltersCommand.ShowMessage -> {
+            state.withSideEffects(FiltersSideEffect.ShowMessage(command.messageRes))
         }
     }
 }

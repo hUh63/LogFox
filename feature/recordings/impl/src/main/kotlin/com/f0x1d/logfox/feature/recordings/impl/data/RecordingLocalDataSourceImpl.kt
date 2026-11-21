@@ -69,10 +69,10 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
         recordingTime = System.currentTimeMillis()
 
         fileMutex.withLock {
-            recordingFile = File(
-                recordingsDir,
-                "${dateTimeFormatter.formatForExport(recordingTime)}.log",
-            )
+            // The formatted timestamp is user-configurable (HH:mm is a valid pattern), so
+            // two recordings started within the same formatted tick used to share one file
+            // and the second one appended to the first one's content
+            recordingFile = uniqueRecordingFile(dateTimeFormatter.formatForExport(recordingTime))
         }
 
         startFiltersCollection()
@@ -156,23 +156,56 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
     }
 
     private suspend fun dumpLines() {
-        val content = linesMutex.withLock {
-            if (recordedLines.isEmpty()) return@withLock ""
+        val batch = linesMutex.withLock {
+            if (recordedLines.isEmpty()) return@withLock emptyList()
 
-            val formatted = recordedLines.joinToString("\n") {
-                logLineFormatterRepository.formatForExport(
-                    logLine = it,
-                )
-            }
-            recordedLines.clear()
-
-            formatted
+            recordedLines.toList()
         }
 
-        if (content.isNotEmpty()) {
-            fileMutex.withLock {
-                recordingFile?.appendText(content + "\n")
+        if (batch.isEmpty()) return
+
+        val content = batch.joinToString("\n") {
+            logLineFormatterRepository.formatForExport(
+                logLine = it,
+            )
+        }
+
+        // Write first, drop the buffer afterwards. Clearing before the write meant an
+        // IOException (storage full, file removed) silently swallowed the whole batch and
+        // the user got a recording with an invisible hole
+        var written = false
+
+        fileMutex.withLock {
+            recordingFile?.let { file ->
+                file.appendText(content + "\n")
+                written = true
             }
+        }
+
+        if (written) {
+            linesMutex.withLock {
+                if (recordedLines.size >= batch.size) {
+                    recordedLines.subList(0, batch.size).clear()
+                } else {
+                    recordedLines.clear()
+                }
+            }
+        }
+    }
+
+    private fun uniqueRecordingFile(baseName: String): File {
+        val base = File(recordingsDir, "$baseName.log")
+
+        if (!base.exists()) return base
+
+        var index = 1
+
+        while (true) {
+            val candidate = File(recordingsDir, "$baseName-$index.log")
+
+            if (!candidate.exists()) return candidate
+
+            index++
         }
     }
 }

@@ -5,6 +5,7 @@ import com.f0x1d.logfox.feature.logging.api.domain.GetCaseSensitiveFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.GetQueryFlowUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.UpdateCaseSensitiveUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.UpdateQueryUseCase
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 internal class SearchLogsEffectHandler @Inject constructor(
@@ -21,7 +22,13 @@ internal class SearchLogsEffectHandler @Inject constructor(
         when (effect) {
             is SearchLogsSideEffect.LoadQuery -> {
                 getQueryFlowUseCase().collect { query ->
-                    onCommand(SearchLogsCommand.QueryLoaded(query))
+                    // Same guard as LogsEffectHandler: one failing emission must not kill
+                    // the collection for the rest of the screen's life
+                    runCatching { onCommand(SearchLogsCommand.QueryLoaded(query)) }
+                        .onFailure { throwable ->
+                            if (throwable is CancellationException) throw throwable
+                            throwable.printStackTrace()
+                        }
                 }
             }
 
@@ -31,7 +38,11 @@ internal class SearchLogsEffectHandler @Inject constructor(
 
             is SearchLogsSideEffect.LoadCaseSensitive -> {
                 getCaseSensitiveFlowUseCase().collect { caseSensitive ->
-                    onCommand(SearchLogsCommand.CaseSensitiveLoaded(caseSensitive))
+                    runCatching { onCommand(SearchLogsCommand.CaseSensitiveLoaded(caseSensitive)) }
+                        .onFailure { throwable ->
+                            if (throwable is CancellationException) throw throwable
+                            throwable.printStackTrace()
+                        }
                 }
             }
 

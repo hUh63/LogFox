@@ -13,4 +13,5 @@ internal sealed interface FiltersCommand {
     data object ClearAll : FiltersCommand
     data class OpenFilter(val filterId: Long) : FiltersCommand
     data object CreateNewFilter : FiltersCommand
+    data class ShowMessage(val messageRes: Int) : FiltersCommand
 }

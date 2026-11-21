@@ -38,10 +38,19 @@ internal class CrashCollectorDataSourceImpl @Inject constructor(
 
         val crashLog = logLines.joinToString(separator = "\n") { it.originalContent }
 
-        val logFile = withContext(ioDispatcher) {
-            File(logsDir, "${appCrash.dateAndTime}-crash.log").apply {
-                writeText(crashLog)
+        val collecting = crashesSettingsRepository.collectingFor(appCrash.crashType.name)
+
+        // Only persist the log file when the crash is actually collected. It used to be
+        // written unconditionally, so with collection disabled nothing referenced the file
+        // and every crash left an orphan in filesDir/crashes that no cleanup ever removed
+        val logFile = if (collecting) {
+            withContext(ioDispatcher) {
+                File(logsDir, "${appCrash.dateAndTime}-crash.log").apply {
+                    writeText(crashLog)
+                }
             }
+        } else {
+            null
         }
 
         val crashWithLog = appCrash.copy(
@@ -49,7 +58,11 @@ internal class CrashCollectorDataSourceImpl @Inject constructor(
             logDumpFile = null, // TODO: return log dumps!
         )
 
-        val finalCrash = if (crashesSettingsRepository.collectingFor(crashWithLog.crashType.name)) {
+        val finalCrash = if (collecting) {
+            // Soft-deleted rows are only removed here; nothing else ever called it, so
+            // deleted crashes (and their file paths) accumulated forever
+            runCatching { crashesRepository.clearDeletedIfNeeded() }
+
             crashWithLog.copy(id = crashesRepository.insert(crashWithLog))
         } else {
             crashWithLog

@@ -125,3 +125,23 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 |---------|-----|
 | Shizuku backend shown as unavailable even though permission was granted | The `isBinderAlive` probe added to `ensureUserServiceBound()` in 1.4 is unreliable for the binder Shizuku hands out: it can report false while the user service is alive. Every availability check then discarded the cached proxy, rebound and hit the 15 s timeout. Removed the probe; a genuinely dead proxy is already reset by `execute()`/`executeNow()` on `RemoteException` |
 
+## 1.8 — resource leaks, stuck states and MCP hardening
+
+| Problem | Fix |
+|---------|-----|
+| Default terminal leaked stderr + stdin on every collection restart (EMFILE after a long session) | `TerminalProcess.destroy` closes both pipes (stdout is closed by the caller) |
+| Shizuku terminal leaked pipes and left an orphan logcat in the service process when one of the three `ParcelFileDescriptor` calls returned null | Close what was obtained, `destroyProcess()` the child, and close all three streams on destroy |
+| "Exit" left a zombie foreground service when `finishAndRemoveTask()`/`stopForeground()` threw | Every step isolated, store cancelled last, `exitProcess` in `finally` |
+| Search panel stopped reacting to query/case-sensitivity changes after one failed emission | Same `runCatching` guard as the logs list |
+| Selected log lines survived buffer eviction: toolbar stuck in selection mode, count larger than the list, copy/export silently empty | `selectedIds` follows the visible ids; `SyncSelectedLines` fired when it shrinks |
+| Apps picker could spin forever when `getInstalledPackages()` threw | `AppsLoaded` is always dispatched (empty list on failure) |
+| Apps picker: a slow result for an old query could replace the newer list | `SearchedAppsUpdated` carries the query and is dropped when it no longer matches |
+| Two recordings started within the same formatted timestamp (e.g. `HH:mm`) shared one file | Unique `-N` suffix, same as the repository path |
+| A failed write discarded the whole recording batch | Lines are dropped only after they are on disk |
+| Notification "stop recording" could be lost when the process was frozen right after `onReceive` | `goAsync()` + `finish()` in `finally` |
+| Crash log file written even when collection was disabled, leaving orphans nobody deletes | File is written only when the crash is actually collected |
+| Soft-deleted crashes were never physically removed (`clearIfNeeded()` had no caller) | Called before inserting a new crash |
+| MCP server stopped from the notification came back on the next process start | The action also disables `pref_mcp_server_enabled` |
+| MCP `dataSync` foreground service hit the Android 15 six-hour cap and crashed the process | `specialUse` type with a subtype property |
+| MCP SSE session buffered responses without limit (slow/non-reading client could OOM the service) | Bounded channel (256, drop oldest) |
+| Filter import could not tell "unreadable file" from "empty file", and import/export failures were silent | Null content is a failure; both paths show a toast |

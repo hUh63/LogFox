@@ -38,16 +38,30 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
                 // are reused after a clear, leaking stale expand state into new lines)
                 val visibleIds = command.logs.mapTo(HashSet(command.logs.size)) { it.id }
 
-                state.copy(
+                // Selection must follow the buffer as well. Keeping ids that no longer
+                // exist left the toolbar stuck in selection mode with a count larger than
+                // the visible rows, and "copy/export selected" silently produced nothing
+                val selectedIds = state.selectedIds.filterTo(HashSet()) { it in visibleIds }
+
+                val newState = state.copy(
                     logs = command.logs,
                     query = command.query,
                     caseSensitive = command.caseSensitive,
                     filters = command.filters,
                     showLogValues = command.showLogValues,
                     expandedOverrides = state.expandedOverrides.filterKeys { it in visibleIds },
+                    selectedIds = selectedIds,
                     logsChanged = true,
                     listRevision = state.listRevision + 1,
-                ).noSideEffects()
+                )
+
+                if (selectedIds.size != state.selectedIds.size) {
+                    newState.withSideEffects(
+                        LogsSideEffect.SyncSelectedLines(newState.logsByIds(selectedIds)),
+                    )
+                } else {
+                    newState.noSideEffects()
+                }
             }
         }
 

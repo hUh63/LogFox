@@ -15,4 +15,5 @@ internal sealed interface FiltersSideEffect {
     // UI side effects - handled by Fragment
     data class NavigateToEditFilter(val filterId: Long) : FiltersSideEffect
     data object NavigateToCreateFilter : FiltersSideEffect
+    data class ShowMessage(val messageRes: Int) : FiltersSideEffect
 }
