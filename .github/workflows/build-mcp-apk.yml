@@ -31,8 +31,11 @@ env:
   # name (a `v` prefix is stripped in the Resolve version step). Without this every tag
   # release silently shipped the hard-coded default version and could not be installed
   # over the previous build.
-  VERSION_NAME: ${{ inputs.version_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '2.1.10-hUh63-1.15' }}
-  VERSION_CODE: ${{ inputs.version_code || '95' }}
+  VERSION_NAME: ${{ inputs.version_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '2.1.10-hUh63-1.16' }}
+  # Derived from the version name below when not passed explicitly (…-1.16 → 96). It used to
+  # be a hard-coded literal, which was forgotten on every bump - the release then shipped with
+  # the previous build's code and could not be installed over it
+  VERSION_CODE: ${{ inputs.version_code || '' }}
 
 jobs:
   build:
@@ -46,8 +49,14 @@ jobs:
       - name: Resolve version
         run: |
           NAME="${VERSION_NAME#v}"
+          CODE="${VERSION_CODE}"
+          if [ -z "$CODE" ]; then
+            MINOR="${NAME##*-}"
+            CODE=$((80 + ${MINOR##*.}))
+          fi
           echo "VERSION_NAME=${NAME}" >> "$GITHUB_ENV"
-          echo "Building ${NAME} (versionCode ${VERSION_CODE})"
+          echo "VERSION_CODE=${CODE}" >> "$GITHUB_ENV"
+          echo "Building ${NAME} (versionCode ${CODE})"
 
       - name: Setup JDK 21
         uses: actions/setup-java@v4
