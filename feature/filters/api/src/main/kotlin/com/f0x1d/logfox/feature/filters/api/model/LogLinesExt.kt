@@ -80,7 +80,9 @@ private fun String?.equalsOrTrueIfNull(other: String) = if (this == null) true e
 /**
  * Exact value matches, unless the "regex" switch of the filter is on: then the value is
  * treated as a regular expression and matched against the whole log tag/content
- * (F0x1d/LogFox#240). An invalid pattern matches nothing instead of crashing/ignoring the filter.
+ * (F0x1d/LogFox#240). An invalid pattern is treated as "this condition is not set": treating
+ * it as "matches nothing" emptied the whole list for an including filter with no hint at all,
+ * and the edit screen now flags the broken expression anyway.
  */
 private fun compileMatcher(pattern: String?, regex: Boolean): (String) -> Boolean {
     if (pattern == null) return { true }
@@ -88,7 +90,7 @@ private fun compileMatcher(pattern: String?, regex: Boolean): (String) -> Boolea
     if (!regex) return { other -> other.contains(pattern) }
 
     val compiled = runCatching { Regex(pattern) }.getOrNull()
-        ?: return { false }
+        ?: return { true }
 
     return { other -> compiled.containsMatchIn(other) }
 }

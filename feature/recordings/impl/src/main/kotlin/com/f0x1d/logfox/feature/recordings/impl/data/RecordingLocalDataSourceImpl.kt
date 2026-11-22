@@ -1,7 +1,10 @@
 package com.f0x1d.logfox.feature.recordings.impl.data
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import com.f0x1d.logfox.core.context.toast
 import com.f0x1d.logfox.core.di.IODispatcher
 import com.f0x1d.logfox.feature.database.api.data.LogRecordingDataSource
 import com.f0x1d.logfox.feature.datetime.api.DateTimeFormatter
@@ -71,8 +74,16 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
     // entries pointing at one file (and deleting either deleted the shared file)
     private val endMutex = Mutex()
 
+    // A chunk that could not be written used to be dropped with nothing but a Log.w, so a
+    // recording that was reported as saved could be silently missing its middle. Failures are
+    // retried (a full disk is often transient), and whatever still cannot be written is
+    // reported to the user when the recording ends.
+    private var consecutiveWriteFailures = 0
+    private var droppedLinesCount = 0
+
     private companion object {
         const val TAG = "RecordingLocalDataSource"
+        const val MAX_WRITE_RETRIES = 3
     }
 
     override suspend fun record() = withContext(ioDispatcher) {
@@ -144,6 +155,16 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
 
             val file = recordingFile ?: return@withContext null
 
+            // Tell the user instead of handing over a silently incomplete recording
+            val dropped = droppedLinesCount
+            droppedLinesCount = 0
+
+            if (dropped > 0) {
+                Handler(Looper.getMainLooper()).post {
+                    context.toast(Strings.recording_partially_saved)
+                }
+            }
+
             LogRecording(
                 title = "${context.getString(Strings.record_file)} ${logRecordingDataSource.count() + 1}",
                 dateAndTime = recordingTime,
@@ -156,6 +177,7 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
             // used to freeze recording for the rest of the process: every new line was
             // dropped and the button only ever tried to "end" an already broken session.
             recordingFile = null
+            consecutiveWriteFailures = 0
             state.update { RecordingState.IDLE }
         }
     }
@@ -203,30 +225,43 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
 
         if (targetFile == null) return@withLock
 
-        // A write failure must not escape: it used to break the whole logcat collection
-        // flow, and keeping the buffer made every following line retry the same failure
+        // A write failure must not escape: it used to break the whole logcat collection flow
         val written = runCatching {
             targetFile.appendText(content + "\n")
         }.onFailure { throwable ->
             Log.e(TAG, "Failed to write ${batch.size} recorded lines", throwable)
         }.isSuccess
 
-        // Only drop what was actually written, and only if the recording was not restarted
-        // meanwhile (record() clears the buffer and switches the file itself)
+        // Only touch what belongs to this recording: record() clears the buffer and switches
+        // the file itself, and must not be undone here
         val stillSameRecording = fileMutex.withLock { recordingFile === targetFile }
 
-        if (stillSameRecording) {
-            linesMutex.withLock {
-                if (recordedLines.size >= batch.size) {
-                    recordedLines.subList(0, batch.size).clear()
-                } else {
-                    recordedLines.clear()
-                }
-            }
+        if (!stillSameRecording) return@withLock
+
+        if (!written) {
+            consecutiveWriteFailures++
+
+            // Keep the lines in the buffer for the next dump, but do not retry a lost cause
+            // forever (the buffer would never drain and every later line would be lost too)
+            if (consecutiveWriteFailures < MAX_WRITE_RETRIES) return@withLock
+
+            Log.e(
+                TAG,
+                "Giving up on ${batch.size} recorded lines after $MAX_WRITE_RETRIES attempts",
+            )
+
+            droppedLinesCount += batch.size
+            consecutiveWriteFailures = 0
+        } else {
+            consecutiveWriteFailures = 0
         }
 
-        if (!written && stillSameRecording) {
-            Log.w(TAG, "Recording chunk could not be persisted, dropped ${batch.size} lines")
+        linesMutex.withLock {
+            if (recordedLines.size >= batch.size) {
+                recordedLines.subList(0, batch.size).clear()
+            } else {
+                recordedLines.clear()
+            }
         }
     }
 

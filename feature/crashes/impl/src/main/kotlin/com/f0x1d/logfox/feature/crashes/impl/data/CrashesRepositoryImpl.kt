@@ -52,12 +52,16 @@ internal class CrashesRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteAllByPackageName(packageName: String) = withContext(ioDispatcher) {
-        appCrashDataSource.getAllByPackageName(packageName).forEach {
+        val crashes = appCrashDataSource.getAllByPackageName(packageName)
+
+        // Rows first, files second: deleting files first left rows pointing at logs that no
+        // longer existed when the process died in between (empty detail screen, empty export)
+        appCrashDataSource.deleteByPackageName(packageName)
+
+        crashes.forEach {
             it.toDomainModel().deleteAssociatedFiles()
             notificationsLocalDataSource.cancelCrashNotificationFor(it.toDomainModel())
         }
-
-        appCrashDataSource.deleteByPackageName(packageName)
     }
 
     override suspend fun update(item: AppCrash) = withContext(ioDispatcher) {
@@ -65,11 +69,13 @@ internal class CrashesRepositoryImpl @Inject constructor(
     }
 
     override suspend fun delete(item: AppCrash) = withContext(ioDispatcher) {
-        item.deleteAssociatedFiles()
-
         // Targeted update instead of writing the whole row: the domain model has no `log`,
-        // so a full @Update blanked the legacy crash body
+        // so a full @Update blanked the legacy crash body.
+        // Marked before the files are removed: file deletion cannot be rolled back, so doing
+        // it first left a visible crash whose log was already gone if the process died here
         appCrashDataSource.markDeleted(item.id)
+
+        item.deleteAssociatedFiles()
 
         notificationsLocalDataSource.cancelCrashNotificationFor(item)
     }
@@ -79,10 +85,13 @@ internal class CrashesRepositoryImpl @Inject constructor(
     }
 
     override suspend fun clear() = withContext(ioDispatcher) {
-        getAll().forEach {
+        val crashes = getAll()
+
+        appCrashDataSource.deleteAll()
+
+        crashes.forEach {
             it.deleteAssociatedFiles()
         }
-        appCrashDataSource.deleteAll()
 
         notificationsLocalDataSource.cancelAllCrashNotifications()
     }

@@ -169,10 +169,20 @@ internal class EditFilterFragment :
                 if (button.isChecked != checked) button.isChecked = checked
             }
 
+            // A broken pattern used to do nothing visible (the list just went empty)
+            tagLayout.error = regexError(state.tag, state.tagRegex)
+            contentLayout.error = regexError(state.content, state.contentRegex)
+
             toolbar.menu.findItem(R.id.export_item).isVisible = state.filter != null
             toolbar.menu.findItem(R.id.tag_regex_item).isChecked = state.tagRegex
             toolbar.menu.findItem(R.id.content_regex_item).isChecked = state.contentRegex
         }
+    }
+
+    private fun regexError(pattern: String?, regex: Boolean): String? {
+        if (!regex || pattern.isNullOrBlank()) return null
+
+        return runCatching { Regex(pattern) }.exceptionOrNull()?.let { getString(Strings.invalid_regex) }
     }
 
     override fun handleSideEffect(sideEffect: EditFilterSideEffect) {

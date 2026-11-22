@@ -267,3 +267,10 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Recording file names were allocated with an `exists()` check, so the recorder and "save logs" could pick the same name in one formatted tick and overwrite each other | Name is claimed atomically with `createNewFile()` |
 | Saving logs left a file without a database row when cancelled mid-write, and wrote a 0-byte "recording" when the buffer was empty | Half-written files are removed, an empty export is reported instead of inserted |
 | Importing filters with an unknown log level name (older/hand-edited file) crashed later and failed the whole import with a generic message; ids from the file aborted the batch on collision | Null levels are dropped, imported ids are cleared, an all-empty payload is reported |
+## 1.19 — no silent data loss
+
+| Problem | Fix |
+|---------|-----|
+| A recording chunk that could not be written was dropped with only a `Log.w`, so a "saved" recording could be silently missing its middle | Failed chunks are retried (3 attempts, then dropped) and the user is told when the recording ends with missing lines |
+| Deleting crashes removed the log files before the database rows, so an interruption left visible crashes whose logs were already gone | Rows are written first, files are removed afterwards and tolerate failure |
+| An invalid regex in a filter silently matched nothing, which emptied the whole log list for an including filter with no hint | An invalid pattern now leaves that condition unset, and the edit screen flags the field with "Invalid regular expression" |
