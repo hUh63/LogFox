@@ -84,7 +84,7 @@ class McpServerManagerImpl @Inject constructor(
             return "port $port is already in use"
         }
 
-        try {
+        return try {
             val instance = McpHttpServer(
                 port = port,
                 token = ensureToken(),
