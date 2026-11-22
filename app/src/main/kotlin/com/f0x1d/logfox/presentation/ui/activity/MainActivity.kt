@@ -112,23 +112,43 @@ class MainActivity :
         )
     }
 
+    private var notificationDialogShown = false
+
     private fun showNotificationPermissionDialogIfNeeded(state: MainViewState) {
+        // render() runs on every state change; without this the dialog was re-created on top
+        // of itself each time
+        if (notificationDialogShown) return
+
         if (!hasNotificationsPermission() && !state.askedNotificationsPermission) {
+            notificationDialogShown = true
+
             MaterialAlertDialogBuilder(this@MainActivity)
                 .setIcon(Icons.ic_dialog_notification_important)
                 .setTitle(Strings.no_notification_permission)
                 .setMessage(Strings.notification_permission_is_required)
                 .setCancelable(false)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
+                    markNotificationsPermissionAsked()
+
                     requestNotificationPermissionLauncher.launch(
                         Manifest.permission.POST_NOTIFICATIONS,
                     )
                 }
-                .setNegativeButton(Strings.close, null)
+                .setNegativeButton(Strings.close) { _, _ ->
+                    markNotificationsPermissionAsked()
+                }
+                .setOnDismissListener {
+                    notificationDialogShown = false
+                }
                 .show()
-
-            viewModel.send(MainCommand.MarkNotificationsPermissionAsked)
         }
+    }
+
+    // Marking it when the dialog was shown meant a dialog lost to a rotation (it is not a
+    // DialogFragment) silenced the prompt forever: the flag said "asked", the user never saw
+    // it, and the permission was never requested
+    private fun markNotificationsPermissionAsked() {
+        viewModel.send(MainCommand.MarkNotificationsPermissionAsked)
     }
 
     private fun ActivityMainBinding.setupNavigation(openCrashesOnStartup: Boolean) {

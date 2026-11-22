@@ -235,4 +235,5 @@
     <string name="filters_import_failed">Could not import filters from the selected file</string>
     <string name="filters_export_failed">Could not export filters</string>
     <string name="mcp_server_notification_failed">MCP server could not start on port %1$d (port may be in use)</string>
+    <string name="file_too_large_to_render">File is too large, showing the beginning only</string>
 </resources>

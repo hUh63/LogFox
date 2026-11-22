@@ -44,7 +44,12 @@ internal class LogsExtendedCopyFragment :
     }
 
     override fun render(state: LogsExtendedCopyViewState) {
-        binding.logText.text = state.text
+        // render() is called on every state change and the text can be megabytes: re-setting
+        // it rebuilt the Editable, re-measured the whole string and dropped the user's
+        // selection each time
+        if (binding.logText.text?.toString() != state.text) {
+            binding.logText.text = state.text
+        }
     }
 
     override fun handleSideEffect(sideEffect: LogsExtendedCopySideEffect) {

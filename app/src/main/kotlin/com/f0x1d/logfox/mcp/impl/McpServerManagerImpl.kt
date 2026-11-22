@@ -19,6 +19,8 @@ import androidx.preference.PreferenceManager
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.net.BindException
@@ -42,6 +44,11 @@ class McpServerManagerImpl @Inject constructor(
 
     private var server: McpHttpServer? = null
 
+    // start()/stop() are called from onCreate and from every onStartCommand action, each in
+    // its own coroutine. Two overlapping starts both saw `server == null`, both bound the
+    // port and the loser reported "port N is already in use" while the server was running
+    private val lifecycleMutex = Mutex()
+
     override var port: Int = McpServerManager.DEFAULT_PORT
         private set
 
@@ -52,7 +59,11 @@ class McpServerManagerImpl @Inject constructor(
         Timber.d("[MCP] McpServerManagerImpl initialized")
     }
 
-    override suspend fun start(port: Int) {
+    override suspend fun start(port: Int) = lifecycleMutex.withLock {
+        startLocked(port)
+    }
+
+    private suspend fun startLocked(port: Int) {
         if (server != null) {
             Timber.d("[MCP] Server already running on port ${this.port}")
 
@@ -99,7 +110,11 @@ class McpServerManagerImpl @Inject constructor(
         }
     }
 
-    override suspend fun stop() {
+    override suspend fun stop() = lifecycleMutex.withLock {
+        stopLocked()
+    }
+
+    private suspend fun stopLocked() {
         if (server == null) {
             Timber.d("[MCP] Server not running, ignoring")
 

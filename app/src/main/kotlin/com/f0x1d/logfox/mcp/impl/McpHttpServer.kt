@@ -17,8 +17,9 @@ import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.BufferedInputStream
@@ -64,7 +66,7 @@ internal class McpHttpServer(
     private val getAllEnabledFiltersFlowUseCase: GetAllEnabledFiltersFlowUseCase,
 ) {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
     private val sessions = ConcurrentHashMap<String, McpSession>()
     private val clientSemaphore = Semaphore(MAX_CLIENTS)
@@ -76,7 +78,14 @@ internal class McpHttpServer(
 
     private var serverSocket: ServerSocket? = null
 
-    fun start() {
+    // suspend + IO: binding a ServerSocket on the main thread throws
+    // NetworkOnMainThreadException under StrictMode and blocks the UI otherwise
+    suspend fun start() = withContext(Dispatchers.IO) {
+        // stop() cancels the scope, so a restarted instance needs a fresh one
+        if (scope.coroutineContext[Job]?.isActive != true) {
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        }
+
         val socket = ServerSocket()
         socket.reuseAddress = true
         socket.bind(InetSocketAddress(HOST, port))
@@ -98,7 +107,9 @@ internal class McpHttpServer(
         sessions.values.forEach { session -> runCatching { session.channel.close() } }
         sessions.clear()
 
-        scope.coroutineContext.cancelChildren()
+        // cancelChildren() left the scope active, so work started after stop() (or by a
+        // restarted instance sharing the same scope) was never cancelled
+        scope.cancel()
 
         Timber.d("[MCP] Server stopped successfully")
     }
@@ -299,16 +310,21 @@ internal class McpHttpServer(
         writeResponse(output, "202 Accepted", CONTENT_TYPE_TEXT, "Accepted".toByteArray())
 
         scope.launch {
-            requestSemaphore.withPermit {
+            val response = requestSemaphore.withPermit {
                 try {
-                    val response = handleJsonRpc(message)
-
-                    if (response != null) {
-                        session.channel.send(response)
-                    }
+                    handleJsonRpc(message)
                 } catch (e: Exception) {
-                    Timber.e(e, "[MCP] Failed to send to $sessionId")
+                    Timber.e(e, "[MCP] Failed to process message for $sessionId")
+                    null
                 }
+            }
+
+            // Outside the permit: with a bounded (blocking) channel a client that never
+            // reads blocked this coroutine forever, and it kept holding a request permit -
+            // enough stuck sessions exhausted the budget and every tool call hung
+            if (response != null) {
+                runCatching { session.channel.send(response) }
+                    .onFailure { Timber.e(it, "[MCP] Failed to send to $sessionId") }
             }
         }
     }

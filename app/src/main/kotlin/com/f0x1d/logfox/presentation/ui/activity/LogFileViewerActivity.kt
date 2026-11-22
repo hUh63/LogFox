@@ -27,11 +27,18 @@ class LogFileViewerActivity : AppCompatActivity() {
     private companion object {
         // Keep in memory something sane, huge files are truncated instead of crashing
         private const val MAX_BYTES = 8 * 1024 * 1024
+
+        // TextView layout is O(n) and it was done twice (two views). Rendering multi-megabyte
+        // text on the main thread froze the screen, so the preview is capped
+        private const val MAX_RENDER_CHARS = 500_000
+
+        private const val KEY_WRAPPED = "wrapped"
     }
 
     private lateinit var binding: ActivityLogFileViewerBinding
 
     private var fileContent: String? = null
+    private var renderedText: String? = null
     private var wrapped = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,12 +68,23 @@ class LogFileViewerActivity : AppCompatActivity() {
             }
         }
 
+        wrapped = savedInstanceState?.getBoolean(KEY_WRAPPED, true) ?: true
+
         applyWrap()
         load(intent)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+
+        outState.putBoolean(KEY_WRAPPED, wrapped)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+
+        // Without setIntent() a process recreation after onNewIntent restored the old URI
+        setIntent(intent)
 
         load(intent)
     }
@@ -76,6 +94,22 @@ class LogFileViewerActivity : AppCompatActivity() {
         binding.logTextScrollableContainer.isVisible = wrapped.not()
 
         binding.toolbar.menu.findItem(R.id.log_file_wrap_lines_item).isChecked = wrapped
+
+        renderText()
+    }
+
+    private fun renderText() {
+        val text = renderedText ?: return
+
+        // Only the visible TextView receives the text, the other one stays empty until the
+        // wrap toggle swaps them
+        if (wrapped) {
+            binding.logText.text = text
+            binding.logTextScrollable.text = null
+        } else {
+            binding.logTextScrollable.text = text
+            binding.logText.text = null
+        }
     }
 
     private fun load(intent: Intent?) {
@@ -99,8 +133,14 @@ class LogFileViewerActivity : AppCompatActivity() {
 
             fileContent = content
 
-            binding.logText.text = content
-            binding.logTextScrollable.text = content
+            if (content.length > MAX_RENDER_CHARS) {
+                renderedText = content.take(MAX_RENDER_CHARS)
+                toast(Strings.file_too_large_to_render)
+            } else {
+                renderedText = content
+            }
+
+            renderText()
         }
     }
 

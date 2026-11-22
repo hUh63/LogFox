@@ -18,10 +18,12 @@
         app:popExitAnim="@anim/nav_default_pop_exit_anim" />
     <action
         android:id="@+id/action_logsFragment_to_searchBottomSheet"
-        app:destination="@id/searchBottomSheet" />
+        app:destination="@id/searchBottomSheet"
+        app:launchSingleTop="true" />
     <action
         android:id="@+id/action_logsFragment_to_filtersFragment"
         app:destination="@id/filtersFragment"
+        app:launchSingleTop="true"
         app:enterAnim="@anim/nav_default_enter_anim"
         app:exitAnim="@anim/nav_default_exit_anim"
         app:popEnterAnim="@anim/nav_default_pop_enter_anim"

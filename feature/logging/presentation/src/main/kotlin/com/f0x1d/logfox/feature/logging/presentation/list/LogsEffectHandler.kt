@@ -105,7 +105,15 @@ internal class LogsEffectHandler @Inject constructor(
             }
 
             is LogsSideEffect.ExportLogsTo -> {
-                exportLogsToUriUseCase(effect.lines, effect.uri)
+                // The write can now fail (unusable URI, storage full, size cap). Reporting
+                // that is required, otherwise the export looks successful and produces
+                // nothing
+                runCatching { exportLogsToUriUseCase(effect.lines, effect.uri) }
+                    .onFailure { throwable ->
+                        if (throwable is CancellationException) throw throwable
+                        throwable.printStackTrace()
+                        onCommand(LogsCommand.ExportFailed)
+                    }
             }
 
             is LogsSideEffect.PrepareExport -> {

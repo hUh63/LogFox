@@ -176,3 +176,30 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Filter autosave debounce vs "save and close": the flush of an older snapshot could overwrite the final text | Non-final writes are skipped once close was requested |
 | Recordings could write the same batch twice (size trigger + stop raced) and a write failure broke the collection flow | Serialized dumps, failures contained, buffer only trimmed for the same recording generation |
 | MCP: bounded SSE channel dropped responses that already got 202 Accepted | Backpressure instead of dropping |
+## 1.11 — setup flow, crash list projection
+
+| Problem | Fix |
+|---------|-----|
+| Setup: the grant request had no in-flight marker and no timeout. Tapping Root/Shizuku again while the su dialog was open started a second request in parallel, and an unanswered dialog suspended the effect forever | `isRunning` in state (buttons disabled), 90 s timeout, both results reset the flag |
+| Crash list read the legacy full `log` column (up to hundreds of KB per row) for every crash on every change, with no LIMIT | List query selects metadata only (`'' AS log`) and is capped at 500 rows; details still read the full row by id |
+| Room schema for version 19 was never exported (only up to 18.json), which would break future auto-migrations | CI dumps the generated schema so it can be committed |
+## 1.12 — UI list/navigation, MCP lifecycle, coroutine safety
+
+| Problem | Fix |
+|---------|-----|
+| Logs list: `submitList(null)` immediately followed by `submitList(items)` made DiffUtil never run - every refresh removed and re-inserted all rows | Removed the null submit |
+| Crash list query stopped the per-app counters from seeing older crashes | Dropped the LIMIT, kept the metadata-only projection |
+| Search sheet wrote the last submitted query back on every state change, erasing what the user was typing | Only writes when the text actually differs, cursor preserved |
+| Fast double tap on the search/filter toolbar icons pushed two destinations | `launchSingleTop` on both actions |
+| Fast double tap on a back arrow popped two screens | 600 ms debounce |
+| Log file viewer rendered up to 8 MB on the main thread in two TextViews | Only the visible view gets the text, preview capped at 500k chars with a hint; wrap state and intent survive recreation |
+| Extended copy screen re-set multi-megabyte text on every render | Only when the text changed |
+| Notification permission dialog was lost on rotation but the "asked" flag was already persisted, so it never appeared again | Marked only after the user answers, single instance guard |
+| Setup: ADB button stayed enabled during a grant and reset the in-flight flag, re-enabling Root/Shizuku mid-request | ADB button disabled too, no flag reset from that path |
+| Setup: 90 s timeout did not stop a cancelled Shizuku grant (cancellation was swallowed) | Cancellation is rethrown |
+| Recording: an in-flight dump could append the previous recording's lines to a newly started one | `record()` now takes the dump lock |
+| Log export failures were silent after the data source started throwing | Handler reports failure, snackbar shown |
+| MCP: `start()` bound the ServerSocket on the main thread | Suspends and binds on IO; scope rebuilt per start, cancelled on stop |
+| MCP: request permits were held while blocking on a slow SSE reader, exhausting the budget | Channel send moved outside the permit |
+| MCP: overlapping restarts both started the server, the loser reported "port in use" | `start()/stop()` serialized with a mutex |
+| `Store.send()` was a non-atomic read/reduce/write, so concurrent commands could drop each other's state and side effects | Serialized under a lock |

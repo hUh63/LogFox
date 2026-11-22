@@ -219,4 +219,5 @@
     <string name="mapping_imported">已导入映射，堆栈将按原名显示</string>
     <string name="mapping_import_failed">无法读取映射文件</string>
     <string name="mcp_server_notification_failed">MCP 服务器未能在端口 %1$d 上启动（端口可能已被占用）</string>
+    <string name="file_too_large_to_render">文件过大，仅显示开头部分</string>
 </resources>

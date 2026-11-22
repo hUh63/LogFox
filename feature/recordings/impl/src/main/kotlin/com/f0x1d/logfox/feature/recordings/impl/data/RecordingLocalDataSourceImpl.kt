@@ -71,17 +71,21 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
     }
 
     override suspend fun record() = withContext(ioDispatcher) {
-        linesMutex.withLock {
-            recordedLines.clear()
-        }
+        // Hold the dump lock while swapping the buffer/file: an in-flight dump used to read
+        // the *new* file after this switch and append the previous recording's lines to it
+        dumpMutex.withLock {
+            linesMutex.withLock {
+                recordedLines.clear()
+            }
 
-        recordingTime = System.currentTimeMillis()
+            recordingTime = System.currentTimeMillis()
 
-        fileMutex.withLock {
-            // The formatted timestamp is user-configurable (HH:mm is a valid pattern), so
-            // two recordings started within the same formatted tick used to share one file
-            // and the second one appended to the first one's content
-            recordingFile = uniqueRecordingFile(dateTimeFormatter.formatForExport(recordingTime))
+            fileMutex.withLock {
+                // The formatted timestamp is user-configurable (HH:mm is a valid pattern), so
+                // two recordings started within the same formatted tick used to share one file
+                // and the second one appended to the first one's content
+                recordingFile = uniqueRecordingFile(dateTimeFormatter.formatForExport(recordingTime))
+            }
         }
 
         startFiltersCollection()

@@ -157,6 +157,10 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
             )
         }
 
+        is LogsCommand.ExportFailed -> {
+            state.withSideEffects(LogsSideEffect.ShowExportFailed)
+        }
+
         is LogsCommand.SwitchState -> {
             state.copy(
                 paused = !state.paused,

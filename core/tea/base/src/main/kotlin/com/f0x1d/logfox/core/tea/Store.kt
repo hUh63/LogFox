@@ -31,19 +31,29 @@ class Store<State, Command, SideEffect>(
 
     private val jobs = ConcurrentHashMap<String, Job>()
 
+    private val sendLock = Any()
+
     fun send(command: Command) {
-        val result = try {
-            reducer.reduce(_state.value, command)
-        } catch (throwable: Throwable) {
-            if (throwable is CancellationException) throw throwable
+        // send() runs from the UI and from effect handlers that may resume on another
+        // dispatcher. Reading _state.value, reducing and writing it back is not atomic, so
+        // two concurrent commands could both start from the same state and the later write
+        // discarded the earlier command's state change together with its side effects
+        val result = synchronized(sendLock) {
+            val reduced = try {
+                reducer.reduce(_state.value, command)
+            } catch (throwable: Throwable) {
+                if (throwable is CancellationException) throw throwable
 
-            // A single bad command must not take the whole screen down. The reducer is pure,
-            // so we can keep the previous state and just report the failure.
-            onError(throwable)
-            return
+                // A single bad command must not take the whole screen down. The reducer is
+                // pure, so we can keep the previous state and just report the failure.
+                onError(throwable)
+                return
+            }
+
+            _state.value = reduced.state
+
+            reduced
         }
-
-        _state.value = result.state
 
         result.sideEffects.forEach { sideEffect ->
             _sideEffects.trySend(sideEffect)

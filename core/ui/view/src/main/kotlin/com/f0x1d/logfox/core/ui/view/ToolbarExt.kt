@@ -1,5 +1,6 @@
 package com.f0x1d.logfox.core.ui.view
 
+import android.os.SystemClock
 import android.view.View
 import android.widget.TextView
 import androidx.annotation.DrawableRes
@@ -17,9 +18,23 @@ fun Toolbar.setupBackButton(onClickListener: View.OnClickListener) {
     setNavigationContentDescription(androidx.appcompat.R.string.abc_action_bar_up_description)
 }
 
-fun Toolbar.setupBackButtonForNavController() = setupBackButton {
-    findNavController().popBackStack()
+fun Toolbar.setupBackButtonForNavController() {
+    // A second tap while the first pop is still being executed popped the screen *below*
+    // the current one as well (one gesture, two levels back)
+    var lastClickAt = 0L
+
+    setupBackButton {
+        val now = SystemClock.elapsedRealtime()
+
+        if (now - lastClickAt < BACK_CLICK_DEBOUNCE_MS) return@setupBackButton
+
+        lastClickAt = now
+
+        findNavController().popBackStack()
+    }
 }
+
+private const val BACK_CLICK_DEBOUNCE_MS = 600L
 
 fun Toolbar.setupCloseButton() {
     setNavigationIcon(Icons.ic_clear)

@@ -65,11 +65,13 @@ internal fun SetupScreenContent(
                             contentDescription = null,
                         )
                     },
+                    enabled = !state.isRunning,
                     onClick = listener.onRootClick,
                 )
 
                 RichButton(
                     modifier = Modifier.testTag(SetupAdbButtonTestTag),
+                    enabled = !state.isRunning,
                     text = { Text(text = stringResource(id = Strings.adb)) },
                     icon = {
                         Icon(
@@ -88,6 +90,7 @@ internal fun SetupScreenContent(
                             contentDescription = null,
                         )
                     },
+                    enabled = !state.isRunning,
                     onClick = listener.onShizukuClick,
                 )
 

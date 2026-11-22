@@ -16,7 +16,20 @@ internal interface AppCrashDao {
         private const val DAYS_30 = 30L * 24 * 3600 * 1000
     }
 
-    @Query("SELECT * FROM AppCrash WHERE is_deleted = :deleted ORDER BY date_and_time DESC")
+    // The list only needs metadata. Selecting `log` (the legacy full crash dump, up to
+    // hundreds of KB per row) for every crash and on every change made the first frame of
+    // the list heavy enough to stall on long histories; the column is faked as '' and the
+    // details screen still reads it with SELECT * by id. No LIMIT on purpose: the same flow
+    // feeds the per-app crash counters
+    @Query(
+        """
+        SELECT id, app_name, package_name, crash_type, date_and_time, '' AS log,
+               log_file, log_dump_file, is_deleted, deleted_time
+        FROM AppCrash
+        WHERE is_deleted = :deleted
+        ORDER BY date_and_time DESC
+        """,
+    )
     fun getAllAsFlow(deleted: Boolean = false): Flow<List<AppCrashRoomEntity>>
 
     @Query("SELECT * FROM AppCrash WHERE is_deleted = :deleted ORDER BY date_and_time DESC")

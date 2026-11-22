@@ -81,4 +81,6 @@ internal sealed interface LogsCommand {
      * so the UI never has to trust the (possibly stale) visual state of the buttons.
      */
     data class ToggleLevelFilter(val level: LogLevel) : LogsCommand
+
+    data object ExportFailed : LogsCommand
 }

@@ -6,11 +6,11 @@ on:
       version_name:
         description: 'Version name for the APK'
         required: false
-        default: '2.1.10-hUh63-1.10'
+        default: '2.1.10-hUh63-1.12'
       version_code:
         description: 'Version code for the APK'
         required: false
-        default: '90'
+        default: '92'
   push:
     branches:
       - master
@@ -31,8 +31,8 @@ env:
   # name (a `v` prefix is stripped in the Resolve version step). Without this every tag
   # release silently shipped the hard-coded default version and could not be installed
   # over the previous build.
-  VERSION_NAME: ${{ inputs.version_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '2.1.10-hUh63-1.10' }}
-  VERSION_CODE: ${{ inputs.version_code || '90' }}
+  VERSION_NAME: ${{ inputs.version_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '2.1.10-hUh63-1.12' }}
+  VERSION_CODE: ${{ inputs.version_code || '92' }}
 
 jobs:
   build:
@@ -110,6 +110,17 @@ jobs:
 
           APKSIGNER="$ANDROID_HOME/build-tools/36.1.0/apksigner"
           "$APKSIGNER" verify --print-certs "$APK"
+
+      - name: Dump Room schemas
+        if: always()
+        run: |
+          echo "=== room schemas ==="
+          find . -path '*/schemas/*' -name '*.json' | sort | tail -10 || true
+          for f in $(find . -path '*/schemas/*' -name '19.json'); do
+            echo "----- BEGIN $f -----"
+            cat "$f"
+            echo "----- END $f -----"
+          done
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

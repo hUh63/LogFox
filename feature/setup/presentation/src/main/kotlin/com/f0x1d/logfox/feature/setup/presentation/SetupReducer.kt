@@ -17,18 +17,32 @@ internal class SetupReducer @Inject constructor() : Reducer<SetupState, SetupCom
         // The backend must only be persisted after the grant actually succeeded. It used to
         // be written on click, so a failed su/Shizuku prompt left the app with an
         // unsupported backend saved: every later launch ended with an empty log list
-        is SetupCommand.RootClicked -> state.withSideEffects(
-            SetupSideEffect.ExecuteRootCommand,
-        )
+        is SetupCommand.RootClicked -> {
+            if (state.isRunning) {
+                state.noSideEffects()
+            } else {
+                state.copy(isRunning = true).withSideEffects(
+                    SetupSideEffect.ExecuteRootCommand,
+                )
+            }
+        }
 
+        // Does NOT reset isRunning: doing so re-enabled Root/Shizuku while a grant was
+        // still in flight, which is exactly the parallel-request race the flag prevents
         is SetupCommand.AdbClicked -> state.withSideEffects(
             SetupSideEffect.SelectTerminal(TerminalType.Default),
             SetupSideEffect.CheckAdbPermission,
         )
 
-        is SetupCommand.ShizukuClicked -> state.withSideEffects(
-            SetupSideEffect.ExecuteShizukuCommand,
-        )
+        is SetupCommand.ShizukuClicked -> {
+            if (state.isRunning) {
+                state.noSideEffects()
+            } else {
+                state.copy(isRunning = true).withSideEffects(
+                    SetupSideEffect.ExecuteShizukuCommand,
+                )
+            }
+        }
 
         is SetupCommand.CheckPermissionClicked -> state.withSideEffects(
             SetupSideEffect.CheckPermission,
@@ -43,21 +57,29 @@ internal class SetupReducer @Inject constructor() : Reducer<SetupState, SetupCom
             showAdbDialog = false,
         ).noSideEffects()
 
-        is SetupCommand.RootExecutionSucceeded -> state.withSideEffects(
+        is SetupCommand.RootExecutionSucceeded -> state.copy(
+            isRunning = false,
+        ).withSideEffects(
             SetupSideEffect.SelectTerminal(TerminalType.Root),
             SetupSideEffect.CheckPermission,
         )
 
-        is SetupCommand.RootExecutionFailed -> state.withSideEffects(
+        is SetupCommand.RootExecutionFailed -> state.copy(
+            isRunning = false,
+        ).withSideEffects(
             SetupSideEffect.ShowSnackbar(Strings.no_root),
         )
 
-        is SetupCommand.ShizukuExecutionSucceeded -> state.withSideEffects(
+        is SetupCommand.ShizukuExecutionSucceeded -> state.copy(
+            isRunning = false,
+        ).withSideEffects(
             SetupSideEffect.SelectTerminal(TerminalType.Shizuku),
             SetupSideEffect.RestartApp,
         )
 
-        is SetupCommand.ShizukuExecutionFailed -> state.withSideEffects(
+        is SetupCommand.ShizukuExecutionFailed -> state.copy(
+            isRunning = false,
+        ).withSideEffects(
             SetupSideEffect.ShowSnackbar(Strings.shizuku_error),
         )
 

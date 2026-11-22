@@ -56,7 +56,15 @@ internal class SearchLogsBottomSheetFragment :
     }
 
     override fun render(state: SearchLogsViewState) {
-        binding.queryText.setText(state.query)
+        // Writing the last submitted query back on every state change erased text the user
+        // was still typing (e.g. right after toggling case sensitivity)
+        val current = binding.queryText.text?.toString()
+
+        if (current != state.query) {
+            binding.queryText.setText(state.query)
+            binding.queryText.setSelection(binding.queryText.text?.length ?: 0)
+        }
+
         binding.clearSearchButton.isVisible = state.query != null
         binding.caseSensitiveCheckbox.isChecked = state.caseSensitive
     }

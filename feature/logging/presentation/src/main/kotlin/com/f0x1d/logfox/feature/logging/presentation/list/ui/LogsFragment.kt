@@ -289,6 +289,10 @@ internal class LogsFragment :
                 snackbar(Strings.logcat_silent_warning, sideEffect.property)
             }
 
+            is LogsSideEffect.ShowExportFailed -> {
+                snackbar(Strings.cannot_open_file)
+            }
+
             is LogsSideEffect.CopyText -> {
                 requireContext().copyText(sideEffect.text)
                 snackbar(Strings.text_copied)
@@ -432,7 +436,8 @@ internal class LogsFragment :
         val layoutManager = logsRecycler.layoutManager as LinearLayoutManager
         val savedState = layoutManager.onSaveInstanceState()
 
-        adapter.submitList(null)
+        // submitList(null) here made AsyncListDiffer take both "empty" fast paths, so the
+        // DiffUtil callback never ran: every refresh removed and re-inserted all rows
         adapter.submitList(items) {
             if (paused) {
                 layoutManager.onRestoreInstanceState(savedState)

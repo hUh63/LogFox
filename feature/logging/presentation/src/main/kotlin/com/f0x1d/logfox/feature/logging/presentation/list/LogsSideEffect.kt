@@ -61,4 +61,6 @@ internal sealed interface LogsSideEffect {
 
     // UI side effects
     data class LogcatSilentWarning(val property: String) : LogsSideEffect
+
+    data object ShowExportFailed : LogsSideEffect
 }

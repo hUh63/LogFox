@@ -23,9 +23,11 @@ fun RichButton(
     icon: @Composable () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Button(
         modifier = modifier,
+        enabled = enabled,
         onClick = onClick,
     ) {
         Box(modifier = Modifier.size(24.dp)) {
