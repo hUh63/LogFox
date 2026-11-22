@@ -274,3 +274,11 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | A recording chunk that could not be written was dropped with only a `Log.w`, so a "saved" recording could be silently missing its middle | Failed chunks are retried (3 attempts, then dropped) and the user is told when the recording ends with missing lines |
 | Deleting crashes removed the log files before the database rows, so an interruption left visible crashes whose logs were already gone | Rows are written first, files are removed afterwards and tolerate failure |
 | An invalid regex in a filter silently matched nothing, which emptied the whole log list for an including filter with no hint | An invalid pattern now leaves that condition unset, and the edit screen flags the field with "Invalid regular expression" |
+## 1.20 — services, permissions and the MCP default
+
+| Problem | Fix |
+|---------|-----|
+| `LoggingService` swallowed a failed `startForeground()`, so Android 12+ killed the process ~5 s later with `ForegroundServiceDidNotStartInTimeException` — looking like a random crash | The failure is logged and the service stops itself |
+| `LoggingService` declared `specialUse` without `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` (Play requirement) | Subtype property added, like the MCP service already had |
+| `LogFoxApp` unconditionally wrote `pref_mcp_server_enabled = true` during its migration, reopening the local HTTP server (and its port) for users who had explicitly turned it off | The migration only fills in a default when the user never chose a value |
+| The `POST_NOTIFICATIONS` result was ignored and the "asked" flag was written before the request, so a denial silently disabled crash/recording notifications forever | The flag is written in the result callback, and a denial shows a hint |

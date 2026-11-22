@@ -90,9 +90,16 @@ class LoggingService : LifecycleService() {
     }
 
     private fun ensureForeground() {
-        // A failed notification must not crash the service; logging still runs in background
+        // A failed notification must not crash the service, but staying alive is not an option
+        // either: startForegroundService() gives the service ~5 s to enter the foreground and
+        // the system killed the process with ForegroundServiceDidNotStartInTimeException,
+        // which looked like a random crash instead of "the notification could not be shown"
         runCatching { startForeground(NOTIFICATION_ID, notification()) }
-            .onFailure { Timber.e(it, "Failed to enter foreground") }
+            .onFailure { throwable ->
+                Timber.e(throwable, "Failed to enter foreground, stopping the service")
+
+                stopSelf()
+            }
     }
 
     private fun clearLogs() {

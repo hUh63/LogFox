@@ -114,10 +114,16 @@ class LogFoxApp : Application(), ImageLoaderFactory {
         val preferences = PreferenceManager.getDefaultSharedPreferences(this)
 
         if (!preferences.contains(PREF_MCP_SERVER_ENABLED_DEFAULT_V2)) {
-            preferences.edit()
-                .putBoolean(McpServerService.PREF_MCP_SERVER_ENABLED, true)
-                .putBoolean(PREF_MCP_SERVER_ENABLED_DEFAULT_V2, true)
-                .apply()
+            preferences.edit().apply {
+                // Only fill in a default for users who never made a choice. Writing `true`
+                // unconditionally reopened the port (and its notification) for users who had
+                // explicitly turned the server off
+                if (!preferences.contains(McpServerService.PREF_MCP_SERVER_ENABLED)) {
+                    putBoolean(McpServerService.PREF_MCP_SERVER_ENABLED, true)
+                }
+
+                putBoolean(PREF_MCP_SERVER_ENABLED_DEFAULT_V2, true)
+            }.apply()
         }
 
         val enabled = preferences.getBoolean(McpServerService.PREF_MCP_SERVER_ENABLED, true)

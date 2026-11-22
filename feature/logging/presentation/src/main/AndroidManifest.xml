@@ -10,6 +10,11 @@
             android:foregroundServiceType="specialUse"
             android:exported="false">
 
+            <!-- Required by Play for a specialUse foreground service -->
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="continuous logcat collection requested by the user" />
+
             <intent-filter>
                 <action android:name="logfox.RESTART_LOGGING" />
             </intent-filter>

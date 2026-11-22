@@ -22,6 +22,7 @@ import com.f0x1d.logfox.core.compat.contrastedNavBarAvailable
 import com.f0x1d.logfox.core.compat.gesturesAvailable
 import com.f0x1d.logfox.core.context.hasNotificationsPermission
 import com.f0x1d.logfox.core.context.isHorizontalOrientation
+import com.f0x1d.logfox.core.context.toast
 import com.f0x1d.logfox.core.ui.base.activity.BaseActivity
 import com.f0x1d.logfox.core.ui.icons.Icons
 import com.f0x1d.logfox.databinding.ActivityMainBinding
@@ -52,7 +53,14 @@ class MainActivity :
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { }
+    ) { granted ->
+        // The result used to be ignored, and the "asked" flag was written before the request
+        // even started: after a denial the crash and recording notifications were dropped
+        // silently and the permission was never asked again
+        markNotificationsPermissionAsked()
+
+        if (!granted) toast(Strings.no_notification_permission)
+    }
 
     private var barShown = true
     private val barScene by lazy {
@@ -129,8 +137,8 @@ class MainActivity :
                 .setMessage(Strings.notification_permission_is_required)
                 .setCancelable(false)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
-                    markNotificationsPermissionAsked()
-
+                    // Flagged in the result callback instead: marking it here silenced the
+                    // dialog for good even if the system dialog never showed up
                     requestNotificationPermissionLauncher.launch(
                         Manifest.permission.POST_NOTIFICATIONS,
                     )
