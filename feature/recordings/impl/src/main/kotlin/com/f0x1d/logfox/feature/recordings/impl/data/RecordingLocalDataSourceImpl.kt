@@ -66,6 +66,11 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
     // took the same snapshot and appended the identical block twice
     private val dumpMutex = Mutex()
 
+    // The notification STOP action and the in-app STOP can fire at the same time. Both used
+    // to read the same recordingFile and insert a row for it, so the list ended up with two
+    // entries pointing at one file (and deleting either deleted the shared file)
+    private val endMutex = Mutex()
+
     private companion object {
         const val TAG = "RecordingLocalDataSource"
     }
@@ -118,7 +123,18 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
         notificationsLocalDataSource.sendRecordingNotification()
     }
 
-    override suspend fun end(): LogRecording? = withContext(ioDispatcher) {
+    override suspend fun end(): LogRecording? = endMutex.withLock {
+        endLocked()
+    }
+
+    private suspend fun endLocked(): LogRecording? = withContext(ioDispatcher) {
+        // Nothing to end: the session was already finished (or never started)
+        if (recordingFile == null && state.value != RecordingState.RECORDING &&
+            state.value != RecordingState.PAUSED
+        ) {
+            return@withContext null
+        }
+
         state.update { RecordingState.SAVING }
 
         try {
@@ -214,17 +230,22 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
         }
     }
 
+    /**
+     * Claims a file name atomically. A plain `exists()` check let the recorder and "save
+     * logs" choose the same name within one formatted tick and overwrite each other - one
+     * recording's content ended up in the other's file.
+     */
     private fun uniqueRecordingFile(baseName: String): File {
-        val base = File(recordingsDir, "$baseName.log")
-
-        if (!base.exists()) return base
-
-        var index = 1
+        var index = 0
 
         while (true) {
-            val candidate = File(recordingsDir, "$baseName-$index.log")
+            val candidate = File(
+                recordingsDir,
+                if (index == 0) "$baseName.log" else "$baseName-$index.log",
+            )
 
-            if (!candidate.exists()) return candidate
+            // createNewFile is the atomic claim: it returns false when the name is taken
+            if (runCatching { candidate.createNewFile() }.getOrDefault(false)) return candidate
 
             index++
         }

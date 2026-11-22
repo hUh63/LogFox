@@ -50,6 +50,8 @@ internal class RecordingsRepositoryImpl @Inject constructor(
         val recordingTime = System.currentTimeMillis()
         val recordingFile = uniqueRecordingFile(recordingTime)
 
+        var writtenLines = 0
+
         try {
             FileOutputStream(recordingFile, false).use { out ->
                 val batch = mutableListOf<String>()
@@ -65,12 +67,14 @@ internal class RecordingsRepositoryImpl @Inject constructor(
 
                         if (batch.size >= BATCH_SIZE) {
                             out.write((batch.joinToString("\n") + "\n").encodeToByteArray())
+                            writtenLines += batch.size
                             batch.clear()
                         }
                     }
 
                 if (batch.isNotEmpty()) {
                     out.write((batch.joinToString("\n") + "\n").encodeToByteArray())
+                    writtenLines += batch.size
                 }
             }
         } catch (e: IOException) {
@@ -83,6 +87,23 @@ internal class RecordingsRepositoryImpl @Inject constructor(
             throw e
         } catch (_: TimeoutCancellationException) {
             // Collection of logs finished!
+        } catch (e: Throwable) {
+            // Cancellation (or anything else) in the middle of writing used to leave a file
+            // with no database row behind, and nothing ever cleaned those up
+            runCatching { recordingFile.delete() }
+
+            throw e
+        }
+
+        // An empty buffer wrote a 0-byte "recording" that opened as a blank screen
+        if (writtenLines == 0) {
+            runCatching { recordingFile.delete() }
+
+            withContext(mainDispatcher) {
+                context.toast(Strings.error_saving_logs)
+            }
+
+            error("No logs were written to ${recordingFile.name}")
         }
 
         LogRecording(
@@ -97,6 +118,10 @@ internal class RecordingsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createRecordingFrom(lines: List<LogLine>): Unit = withContext(ioDispatcher) {
+        // Nothing selected any more (lines evicted while the user was choosing): an empty
+        // "recording" would be inserted and open as a blank screen
+        if (lines.isEmpty()) return@withContext
+
         val recordingTime = System.currentTimeMillis()
 
         val recordingFile = uniqueRecordingFile(recordingTime)
@@ -126,15 +151,21 @@ internal class RecordingsRepositoryImpl @Inject constructor(
     private fun uniqueRecordingFile(time: Long): File {
         val base = dateTimeFormatter.formatForExport(time)
 
-        var file = File(recordingsDir, "$base.log")
-        var index = 1
+        var index = 0
 
-        while (file.exists()) {
-            file = File(recordingsDir, "$base-$index.log")
+        while (true) {
+            val file = File(
+                recordingsDir,
+                if (index == 0) "$base.log" else "$base-$index.log",
+            )
+
+            // createNewFile is the atomic claim: an exists() check let the recorder and
+            // "save logs" pick the same name inside one formatted tick and overwrite
+            // each other's content
+            if (runCatching { file.createNewFile() }.getOrDefault(false)) return file
+
             index++
         }
-
-        return file
     }
 
     override suspend fun updateTitle(recordingId: Long, newTitle: String) {

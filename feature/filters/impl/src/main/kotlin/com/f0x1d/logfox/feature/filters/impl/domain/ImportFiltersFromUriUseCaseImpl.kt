@@ -5,6 +5,7 @@ import com.f0x1d.logfox.feature.export.api.data.ExportRepository
 import com.f0x1d.logfox.feature.filters.api.domain.CreateAllFiltersUseCase
 import com.f0x1d.logfox.feature.filters.api.domain.ImportFiltersFromUriUseCase
 import com.f0x1d.logfox.feature.filters.api.model.UserFilter
+import com.f0x1d.logfox.feature.logging.api.model.LogLevel
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import javax.inject.Inject
@@ -22,10 +23,24 @@ internal class ImportFiltersFromUriUseCaseImpl @Inject constructor(
         val content = exportRepository.readContentFromUri(uri)
             ?: error("Cannot read filters from $uri")
 
-        val filters = gson.fromJson<List<UserFilter>>(
+        // Parsed as nullable elements on purpose: Gson turns an unknown enum name (an older
+        // or a hand-edited file) into a null list element, which later blew up inside the
+        // type converter and failed the whole import with a generic message
+        val parsed = gson.fromJson<List<UserFilter?>>(
             content,
-            object : TypeToken<List<UserFilter>>() {}.type,
+            object : TypeToken<List<UserFilter?>>() {}.type,
         ) ?: error("Empty filters payload in $uri")
+
+        val filters = parsed.filterNotNull().map { filter ->
+            filter.copy(
+                // Ids in the file are meaningless here and a collision made the batch abort,
+                // the database assigns fresh ones
+                id = 0,
+                allowedLevels = (filter.allowedLevels as List<LogLevel?>).filterNotNull(),
+            )
+        }
+
+        if (filters.isEmpty()) error("No filters in $uri")
 
         createAllFiltersUseCase(filters)
     }

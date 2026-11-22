@@ -259,3 +259,11 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | The export content was computed after the system picker returned; the buffer kept evicting lines in the meantime, so an export could silently contain fewer lines than selected (or a 0-byte file) | The lines are snapshotted when the picker opens (`pendingExportLines` / `pendingSaveCurrentLines`) |
 | "Save current logs" exported the raw buffer (ignoring query/filters) and could write an empty file | Exports the visible list and does nothing when it is empty |
 | `EditFilterFragment` cached its level buttons with `by lazy`: after returning from the app picker the buttons neither showed the saved levels nor reacted to taps | Resolved per call, like `LogsFragment` already does |
+## 1.18 — recording and filter import hardening
+
+| Problem | Fix |
+|---------|-----|
+| Stopping a recording from the notification while the in-app button was pressed inserted two rows pointing at one file (and deleting either removed the shared file) | `end()` is single-flight (`endMutex`) and returns early when nothing is being recorded |
+| Recording file names were allocated with an `exists()` check, so the recorder and "save logs" could pick the same name in one formatted tick and overwrite each other | Name is claimed atomically with `createNewFile()` |
+| Saving logs left a file without a database row when cancelled mid-write, and wrote a 0-byte "recording" when the buffer was empty | Half-written files are removed, an empty export is reported instead of inserted |
+| Importing filters with an unknown log level name (older/hand-edited file) crashed later and failed the whole import with a generic message; ids from the file aborted the batch on collision | Null levels are dropped, imported ids are cleared, an all-empty payload is reported |
