@@ -18,6 +18,7 @@ import timber.log.Timber
 import java.io.BufferedReader
 import javax.inject.Inject
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 internal class LoggingRepositoryImpl @Inject constructor(
@@ -83,17 +84,39 @@ internal class LoggingRepositoryImpl @Inject constructor(
             process.output.bufferedReader().use { reader ->
                 Timber.d("Got reader")
 
-                while (true) {
-                    val line = withTimeoutOrNull(readLineTimeout) {
-                        reader.readLineCancellable()
-                    }
+                // A record is held back until the next header line shows up, so continuation
+                // lines (stack traces, messages with newlines) can be appended to it instead
+                // of being dropped
+                var pending: LogLine? = null
 
-                    if (line == null) {
-                        // Idle or EOF. End the flow *normally* instead of throwing: the old
-                        // `withTimeout` raised a CancellationException, which the collection
-                        // code now (correctly) treats as a real cancel - so a live logcat
-                        // that was simply idle stopped for good.
-                        break
+                while (true) {
+                    val line: String?
+
+                    if (pending == null) {
+                        line = withTimeoutOrNull(readLineTimeout) {
+                            reader.readLineCancellable()
+                        }
+
+                        if (line == null) {
+                            // Idle or EOF. End the flow *normally* instead of throwing: the old
+                            // `withTimeout` raised a CancellationException, which the collection
+                            // code now (correctly) treats as a real cancel - so a live logcat
+                            // that was simply idle stopped for good.
+                            break
+                        }
+                    } else {
+                        // Only hold a record for a moment: waiting the full idle timeout for a
+                        // continuation would make the last line of a quiet logcat appear 60 s late
+                        line = withTimeoutOrNull(CONTINUATION_WINDOW) {
+                            reader.readLineCancellable()
+                        }
+
+                        if (line == null) {
+                            pending?.let { emit(it) }
+                            pending = null
+
+                            continue
+                        }
                     }
 
                     val logLine = logLineParser.parse(
@@ -101,10 +124,24 @@ internal class LoggingRepositoryImpl @Inject constructor(
                         line = line,
                     )
 
-                    if (logLine == null) continue
+                    if (logLine == null) {
+                        // `--------- beginning of main` and friends are separators, not content
+                        if (pending != null && !line.startsWith("---------")) {
+                            pending = pending.copy(
+                                content = pending.content + "\n" + line,
+                                originalContent = pending.originalContent + "\n" + line,
+                            )
+                        }
 
-                    emit(logLine)
+                        continue
+                    }
+
+                    pending?.let { emit(it) }
+                    pending = logLine
                 }
+
+                // Do not lose the last record when the stream simply ends
+                pending?.let { emit(it) }
             }
         } finally {
             Timber.d("Destroying process")
@@ -128,7 +165,16 @@ internal class LoggingRepositoryImpl @Inject constructor(
 
     private fun formatTimestampForLogcat(timeMillis: Long): String {
         val seconds = timeMillis / 1000
-        val millis = timeMillis % 1000
+
+        // The fraction is interpreted by position: ".5" means 500 ms, not 5 ms, so a
+        // non-padded value silently started collection up to a second too late
+        val millis = (timeMillis % 1000).toString().padStart(3, '0')
+
         return "$seconds.$millis"
+    }
+
+    private companion object {
+        // How long a parsed record is held back waiting for possible continuation lines
+        val CONTINUATION_WINDOW = 150.milliseconds
     }
 }

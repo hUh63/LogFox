@@ -20,17 +20,16 @@ constructor(
     // date/time format in settings takes effect immediately instead of after a process
     // restart. An invalid user-supplied pattern falls back to the default pattern instead
     // of throwing from a lazy initializer (which used to crash the whole screen).
-    @Volatile
-    private var cachedDatePattern: String? = null
+    // Pattern and formatter are kept in one immutable holder, written with a single volatile
+    // write: as two separate fields a reader could see the new pattern with the old formatter
+    // and render part of a screen (or an export) with the previous format
+    private data class CachedFormatter(val pattern: String, val formatter: SimpleDateFormat)
 
     @Volatile
-    private var cachedDateFormatter: SimpleDateFormat? = null
+    private var cachedDate: CachedFormatter? = null
 
     @Volatile
-    private var cachedTimePattern: String? = null
-
-    @Volatile
-    private var cachedTimeFormatter: SimpleDateFormat? = null
+    private var cachedTime: CachedFormatter? = null
 
     override fun formatDate(time: Long): String = tryFormatBy(
         dateFormatterFor(dateTimeSettingsRepository.dateFormat().value),
@@ -50,23 +49,23 @@ constructor(
     private fun dateFormatterFor(pattern: String?): SimpleDateFormat {
         val key = pattern.orEmpty()
 
-        cachedDateFormatter?.let { if (cachedDatePattern == key) return it }
+        cachedDate?.let { if (it.pattern == key) return it.formatter }
 
-        return createFormatter(key, DateTimeSettingsRepository.DATE_FORMAT_DEFAULT).also {
-            cachedDatePattern = key
-            cachedDateFormatter = it
-        }
+        return CachedFormatter(
+            key,
+            createFormatter(key, DateTimeSettingsRepository.DATE_FORMAT_DEFAULT),
+        ).also { cachedDate = it }.formatter
     }
 
     private fun timeFormatterFor(pattern: String?): SimpleDateFormat {
         val key = pattern.orEmpty()
 
-        cachedTimeFormatter?.let { if (cachedTimePattern == key) return it }
+        cachedTime?.let { if (it.pattern == key) return it.formatter }
 
-        return createFormatter(key, DateTimeSettingsRepository.TIME_FORMAT_DEFAULT).also {
-            cachedTimePattern = key
-            cachedTimeFormatter = it
-        }
+        return CachedFormatter(
+            key,
+            createFormatter(key, DateTimeSettingsRepository.TIME_FORMAT_DEFAULT),
+        ).also { cachedTime = it }.formatter
     }
 
     private fun tryFormatBy(formatter: SimpleDateFormat, time: Long) = try {

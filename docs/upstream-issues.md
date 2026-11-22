@@ -282,3 +282,10 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | `LoggingService` declared `specialUse` without `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` (Play requirement) | Subtype property added, like the MCP service already had |
 | `LogFoxApp` unconditionally wrote `pref_mcp_server_enabled = true` during its migration, reopening the local HTTP server (and its port) for users who had explicitly turned it off | The migration only fills in a default when the user never chose a value |
 | The `POST_NOTIFICATIONS` result was ignored and the "asked" flag was written before the request, so a denial silently disabled crash/recording notifications forever | The flag is written in the result callback, and a denial shows a hint |
+## 1.21 — logcat parsing and formatting
+
+| Problem | Fix |
+|---------|-----|
+| Continuation lines (stack traces, messages containing newlines) have no logcat header and were dropped — crash context was cut in half and multi-line messages lost their body | A record is held for 150 ms and continuation lines are appended to it; separator lines (`--------- beginning of …`) are ignored |
+| The `-T` resume timestamp was built without padding the milliseconds (`.5` = 500 ms, not 5 ms), so resuming collection started up to a second too late and those lines were lost | Milliseconds are zero-padded to three digits |
+| The date/time formatter cache stored pattern and formatter in two separate volatile fields, so a concurrent reader could format with the previous pattern after a settings change | Both live in one immutable holder written at once |
