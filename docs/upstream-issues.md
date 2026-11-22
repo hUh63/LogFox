@@ -203,3 +203,8 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | MCP: request permits were held while blocking on a slow SSE reader, exhausting the budget | Channel send moved outside the permit |
 | MCP: overlapping restarts both started the server, the loser reported "port in use" | `start()/stop()` serialized with a mutex |
 | `Store.send()` was a non-atomic read/reduce/write, so concurrent commands could drop each other's state and side effects | Serialized under a lock |
+## 1.13 — Room schema export
+
+| Problem | Fix |
+|---------|-----|
+| Room schema for the current version was never exported (`ksp { arg(...) }` was nested in `defaultConfig`, where it is ignored), so the next version bump would have no baseline for auto-migrations | Moved to a top-level `ksp` block; CI dumps the generated schema so it can be committed |

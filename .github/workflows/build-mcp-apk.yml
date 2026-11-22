@@ -6,11 +6,11 @@ on:
       version_name:
         description: 'Version name for the APK'
         required: false
-        default: '2.1.10-hUh63-1.12'
+        default: '2.1.10-hUh63-1.13'
       version_code:
         description: 'Version code for the APK'
         required: false
-        default: '92'
+        default: '93'
   push:
     branches:
       - master
@@ -31,8 +31,8 @@ env:
   # name (a `v` prefix is stripped in the Resolve version step). Without this every tag
   # release silently shipped the hard-coded default version and could not be installed
   # over the previous build.
-  VERSION_NAME: ${{ inputs.version_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '2.1.10-hUh63-1.12' }}
-  VERSION_CODE: ${{ inputs.version_code || '92' }}
+  VERSION_NAME: ${{ inputs.version_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '2.1.10-hUh63-1.13' }}
+  VERSION_CODE: ${{ inputs.version_code || '93' }}
 
 jobs:
   build:
