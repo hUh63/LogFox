@@ -23,7 +23,7 @@ internal data class AppCrashRoomEntity(
 
 internal class CrashTypeConverter {
     @TypeConverter
-    fun toCrashType(value: Int) = enumValues<CrashType>()[value]
+    fun toCrashType(value: Int) = CrashType.entries.getOrNull(value) ?: CrashType.JAVA
 
     @TypeConverter
     fun fromCrashType(value: CrashType) = value.ordinal

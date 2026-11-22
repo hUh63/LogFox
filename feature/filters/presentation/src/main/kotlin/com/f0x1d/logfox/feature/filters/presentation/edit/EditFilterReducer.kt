@@ -162,10 +162,6 @@ internal class EditFilterReducer @Inject constructor(
                 else -> state.withSideEffects(EditFilterSideEffect.Close)
             }
         }
-
-        is EditFilterCommand.AttemptCloseConfirmed -> {
-            state.withSideEffects(EditFilterSideEffect.Close)
-        }
     }
 
     private fun List<Boolean>.toEnabledLogLevels(): List<LogLevel> = mapIndexedNotNull {

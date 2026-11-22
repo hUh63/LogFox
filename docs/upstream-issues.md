@@ -239,3 +239,12 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Toolbar claimed "N selected" while fewer rows were highlighted after a level filter, and copy/export included invisible lines | Counters follow the visible rows, and bulk operations skip lines hidden by the level filter |
 | Crash search ignored the sort setting (results always ordered by time while the main list used the chosen key) | Search combines the sort type and direction flows |
 | Fast double tap on a recording opened two detail sheets | `launchSingleTop` on that action |
+## 1.16 — MCP auth switch and empty states
+
+| Problem | Fix |
+|---------|-----|
+| MCP token authentication could not be turned off, even for users who deliberately expose the server on a trusted LAN | New "Require token" switch in service settings (`pref_mcp_server_auth_enabled`, default on); off means requests are accepted without a token and the copyable link contains no token |
+| Crash search with no matches showed a blank panel, indistinguishable from a screen that had not loaded yet | Placeholder text appears when the query is non-empty and the results are empty |
+| Deleting the last crash of an app left the app's crash screen completely blank | Placeholder text when the list is empty |
+| `EditFilterFragment` still carried a "discard changes?" dialog that could never be reached (leaving the screen always saves) | Removed `ConfirmDiscard` / `AttemptCloseConfirmed` and the dialog |
+| `CrashTypeConverter` indexed the enum array with the stored ordinal and would throw if that value ever fell out of range | Falls back to `JAVA` instead of crashing |

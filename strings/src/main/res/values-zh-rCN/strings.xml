@@ -220,4 +220,6 @@
     <string name="mapping_import_failed">无法读取映射文件</string>
     <string name="mcp_server_notification_failed">MCP 服务器未能在端口 %1$d 上启动（端口可能已被占用）</string>
     <string name="file_too_large_to_render">文件过大，仅显示开头部分</string>
+    <string name="mcp_server_auth">需要访问令牌</string>
+    <string name="mcp_server_auth_desc">关闭后，同一网络下的任何设备都能读取和清空你的日志。修改后需重启服务器生效。</string>
 </resources>

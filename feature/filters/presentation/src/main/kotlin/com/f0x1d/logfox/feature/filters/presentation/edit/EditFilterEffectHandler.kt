@@ -85,7 +85,6 @@ internal class EditFilterEffectHandler @Inject constructor(
             // UI side effects - handled by Fragment
             is EditFilterSideEffect.NavigateToAppPicker -> Unit
             is EditFilterSideEffect.Close -> Unit
-            is EditFilterSideEffect.ConfirmDiscard -> Unit
         }
     }
 

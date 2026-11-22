@@ -33,7 +33,6 @@ internal sealed interface EditFilterCommand {
     data object AttemptClose : EditFilterCommand
 
     // User confirmed discarding unsaved changes in the dialog; close unconditionally.
-    data object AttemptCloseConfirmed : EditFilterCommand
 
     // Navigation
     data object SelectApp : EditFilterCommand

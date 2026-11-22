@@ -116,6 +116,15 @@
             android:key="pref_mcp_server_port"
             app:iconSpaceReserved="false" />
 
+        <SwitchPreferenceCompat
+            android:title="@string/mcp_server_auth"
+            android:summary="@string/mcp_server_auth_desc"
+            android:key="pref_mcp_server_auth_enabled"
+            android:defaultValue="true"
+            app:singleLineTitle="false"
+            app:widgetLayout="@layout/preference_material_switch"
+            app:iconSpaceReserved="false" />
+
         <Preference
             android:title="@string/local_link"
             android:key="pref_mcp_server_local_link"

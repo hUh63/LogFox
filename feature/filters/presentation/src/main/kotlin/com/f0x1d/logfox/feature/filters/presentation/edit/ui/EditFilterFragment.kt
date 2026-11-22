@@ -182,15 +182,6 @@ internal class EditFilterFragment :
                 findNavController().popBackStack()
             }
 
-            is EditFilterSideEffect.ConfirmDiscard -> {
-                showAreYouSureDialog(
-                    title = Strings.discard_changes,
-                    message = Strings.discard_changes_message,
-                ) {
-                    send(EditFilterCommand.AttemptCloseConfirmed)
-                }
-            }
-
             // Business logic side effects are handled by EffectHandler
             else -> Unit
         }

@@ -129,6 +129,10 @@ class McpServerManagerImpl @Inject constructor(
     private fun ensureToken(): String {
         val preferences = PreferenceManager.getDefaultSharedPreferences(context)
 
+        // The toggle exists so LAN access can be used without a token when the user accepts
+        // the risk; an empty token disables the check in McpHttpServer
+        if (!preferences.getBoolean(PREF_MCP_SERVER_AUTH_ENABLED, true)) return ""
+
         val existing = preferences.getString(PREF_MCP_SERVER_TOKEN, null)
 
         if (!existing.isNullOrBlank()) return existing
@@ -219,6 +223,7 @@ class McpServerManagerImpl @Inject constructor(
     private companion object {
         const val PREF_MCP_SERVER_RUNNING = "pref_mcp_server_running"
         const val PREF_MCP_SERVER_TOKEN = "pref_mcp_server_token"
+        const val PREF_MCP_SERVER_AUTH_ENABLED = "pref_mcp_server_auth_enabled"
         const val PREF_MCP_SERVER_ACTIVE_PORT = "pref_mcp_server_active_port"
         const val PREF_MCP_SERVER_ERROR = "pref_mcp_server_error"
     }

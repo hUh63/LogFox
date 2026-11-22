@@ -79,6 +79,10 @@ internal class AppCrashesFragment :
 
     override fun render(state: AppCrashesViewState) {
         binding.toolbar.title = state.appName ?: state.packageName
+
+        // Deleting the last crash of an app left a completely blank screen
+        binding.crashesPlaceholder.isVisible = state.crashes.isEmpty()
+
         adapter.submitList(state.crashes)
     }
 

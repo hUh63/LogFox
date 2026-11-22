@@ -157,6 +157,10 @@ internal class CrashesFragment :
 
         adapter.submitList(state.crashes)
         searchedAdapter.submitList(state.searchedCrashes)
+
+        // Without this the search panel was simply blank, indistinguishable from "loading"
+        binding.searchedCrashesPlaceholder.isVisible =
+            state.searchedCrashes.isEmpty() && !state.query.isNullOrBlank()
     }
 
     override fun handleSideEffect(sideEffect: CrashesSideEffect) {

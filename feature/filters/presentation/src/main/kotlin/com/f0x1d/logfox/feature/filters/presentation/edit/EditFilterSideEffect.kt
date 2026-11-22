@@ -28,5 +28,4 @@ internal sealed interface EditFilterSideEffect {
     // UI side effects - handled by Fragment
     data object NavigateToAppPicker : EditFilterSideEffect
     data object Close : EditFilterSideEffect
-    data object ConfirmDiscard : EditFilterSideEffect
 }

@@ -110,6 +110,20 @@ internal class PreferencesServiceFragment :
             }
         }
 
+        findPreference<SwitchPreferenceCompat>(PREF_MCP_SERVER_AUTH)?.setOnPreferenceChangeListener { _, value ->
+            val enabled = value as Boolean
+
+            PreferenceManager.getDefaultSharedPreferences(requireContext())
+                .edit()
+                .putBoolean(PREF_MCP_SERVER_AUTH, enabled)
+                .apply()
+
+            // The token is read when the server starts, so a restart is required
+            restartMcpServer()
+
+            true
+        }
+
         findPreference<Preference>(PREF_MCP_SERVER_PORT)?.setOnPreferenceClickListener {
             showMcpPortDialog()
 
@@ -142,6 +156,8 @@ internal class PreferencesServiceFragment :
         val error = preferences.getString(PREF_MCP_SERVER_ERROR, null)
 
         findPreference<SwitchPreferenceCompat>(PREF_MCP_SERVER_ENABLED)?.isChecked = enabled
+        findPreference<SwitchPreferenceCompat>(PREF_MCP_SERVER_AUTH)?.isChecked =
+            preferences.getBoolean(PREF_MCP_SERVER_AUTH, true)
 
         findPreference<Preference>(PREF_MCP_SERVER_STATUS)?.summary = when {
             running -> getString(Strings.server_running, activePort)
@@ -151,8 +167,10 @@ internal class PreferencesServiceFragment :
 
         findPreference<Preference>(PREF_MCP_SERVER_PORT)?.summary = getString(Strings.default_port, configuredPort.toString())
 
-        // The server now requires a token, so the address without it would just answer 401
-        val token = preferences.getString(PREF_MCP_SERVER_TOKEN, null)
+        // The server requires a token unless the user turned the check off, in which case
+        // the address must not carry a stale suffix
+        val authEnabled = preferences.getBoolean(PREF_MCP_SERVER_AUTH, true)
+        val token = if (authEnabled) preferences.getString(PREF_MCP_SERVER_TOKEN, null) else null
         val tokenSuffix = token?.takeIf { it.isNotBlank() }?.let { "?token=$it" }.orEmpty()
 
         val localLink = if (running) "http://127.0.0.1:$activePort$tokenSuffix" else null
@@ -348,6 +366,7 @@ internal class PreferencesServiceFragment :
         private const val PREF_MCP_SERVER_PORT = "pref_mcp_server_port"
         private const val PREF_MCP_SERVER_STATUS = "pref_mcp_server_status"
         private const val PREF_MCP_SERVER_TOKEN = "pref_mcp_server_token"
+        private const val PREF_MCP_SERVER_AUTH = "pref_mcp_server_auth_enabled"
         private const val PREF_MCP_SERVER_LOCAL_LINK = "pref_mcp_server_local_link"
         private const val PREF_MCP_SERVER_LAN_LINK = "pref_mcp_server_lan_link"
 

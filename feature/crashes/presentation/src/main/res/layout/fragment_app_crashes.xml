@@ -29,4 +29,14 @@
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         tools:listitem="@layout/item_crash"/>
 
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/crashes_placeholder"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="@string/no_crashes"
+        android:textSize="16sp"
+        android:textColor="?android:textColorPrimary"
+        android:visibility="gone" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
