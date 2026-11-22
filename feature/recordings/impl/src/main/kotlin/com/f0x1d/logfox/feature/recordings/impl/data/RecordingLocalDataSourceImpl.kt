@@ -1,6 +1,7 @@
 package com.f0x1d.logfox.feature.recordings.impl.data
 
 import android.content.Context
+import android.util.Log
 import com.f0x1d.logfox.core.di.IODispatcher
 import com.f0x1d.logfox.feature.database.api.data.LogRecordingDataSource
 import com.f0x1d.logfox.feature.datetime.api.DateTimeFormatter
@@ -26,7 +27,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,6 +65,10 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
     // Serializes "snapshot -> write -> trim". Without it two dumps (size trigger + end())
     // took the same snapshot and appended the identical block twice
     private val dumpMutex = Mutex()
+
+    private companion object {
+        const val TAG = "RecordingLocalDataSource"
+    }
 
     override suspend fun record() = withContext(ioDispatcher) {
         linesMutex.withLock {
@@ -184,7 +188,7 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
         val written = runCatching {
             targetFile.appendText(content + "\n")
         }.onFailure { throwable ->
-            Timber.e(throwable, "Failed to write ${batch.size} recorded lines")
+            Log.e(TAG, "Failed to write ${batch.size} recorded lines", throwable)
         }.isSuccess
 
         // Only drop what was actually written, and only if the recording was not restarted
@@ -202,7 +206,7 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
         }
 
         if (!written && stillSameRecording) {
-            Timber.w("Recording chunk could not be persisted, dropped ${batch.size} lines")
+            Log.w(TAG, "Recording chunk could not be persisted, dropped ${batch.size} lines")
         }
     }
 
