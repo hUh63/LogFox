@@ -9,6 +9,7 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.f0x1d.logfox.R
 import com.f0x1d.logfox.core.context.shareIntent
+import com.f0x1d.logfox.core.context.shareUriIntent
 import com.f0x1d.logfox.core.context.toast
 import com.f0x1d.logfox.databinding.ActivityLogFileViewerBinding
 import com.f0x1d.logfox.feature.strings.Strings
@@ -60,7 +61,16 @@ class LogFileViewerActivity : AppCompatActivity() {
                 }
 
                 R.id.log_file_share_item -> {
-                    fileContent?.let { shareIntent(it) }
+                    // The file itself is shared: a real log does not fit into an intent extra
+                    // (binder transaction limit) and the resulting failure was swallowed
+                    val uri = intent?.data
+
+                    if (uri != null) {
+                        shareUriIntent(uri)
+                    } else {
+                        fileContent?.let { shareIntent(it) }
+                    }
+
                     true
                 }
 

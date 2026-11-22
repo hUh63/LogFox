@@ -73,6 +73,12 @@ internal class McpHttpServer(
 
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
+
+    // start() switches to an IO thread to bind. If the service is destroyed inside that
+    // window, stop() sees serverSocket == null, so the freshly bound socket used to stay
+    // open with nobody owning it while the manager reported "not running" - every later
+    // start then failed with "port already in use" until the process died
+    private val stopped = AtomicBoolean(false)
     private val sessions = ConcurrentHashMap<String, McpSession>()
     private val clientSemaphore = Semaphore(MAX_CLIENTS)
 
@@ -86,6 +92,9 @@ internal class McpHttpServer(
     // suspend + IO: binding a ServerSocket on the main thread throws
     // NetworkOnMainThreadException under StrictMode and blocks the UI otherwise
     suspend fun start() = withContext(Dispatchers.IO) {
+        // A stopped instance is dead for good: the manager creates a new one on restart
+        check(!stopped.get()) { "server was stopped" }
+
         // stop() cancels the scope, so a restarted instance needs a fresh one
         if (scope.coroutineContext[Job]?.isActive != true) {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -94,6 +103,13 @@ internal class McpHttpServer(
         val socket = ServerSocket()
         socket.reuseAddress = true
         socket.bind(InetSocketAddress(HOST, port))
+
+        // stop() landed while binding: close what we just bound instead of leaving an
+        // unowned listening socket behind
+        if (stopped.get()) {
+            runCatching { socket.close() }
+            throw IllegalStateException("server was stopped while binding")
+        }
 
         serverSocket = socket
         running.set(true)
@@ -104,6 +120,7 @@ internal class McpHttpServer(
     }
 
     fun stop() {
+        stopped.set(true)
         running.set(false)
 
         runCatching { serverSocket?.close() }

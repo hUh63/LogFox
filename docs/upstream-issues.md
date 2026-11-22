@@ -248,3 +248,6 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Deleting the last crash of an app left the app's crash screen completely blank | Placeholder text when the list is empty |
 | `EditFilterFragment` still carried a "discard changes?" dialog that could never be reached (leaving the screen always saves) | Removed `ConfirmDiscard` / `AttemptCloseConfirmed` and the dialog |
 | `CrashTypeConverter` indexed the enum array with the stored ordinal and would throw if that value ever fell out of range | Falls back to `JAVA` instead of crashing |
+| MCP: stopping the service while `start()` was still binding left the port bound with no owner, so every later start failed with "port already in use" while the HTTP server kept serving | A stopped server refuses to come up and closes anything it bound during the race |
+| Opening a log file from another app and pressing share put the whole file into `EXTRA_TEXT` → `TransactionTooLargeException`, swallowed, button looked dead | Shares the file's content Uri with a read grant |
+| No `OnDestinationChangedListener` callback after a rotation (registered after the graph was set, which already dispatched), so the bottom bar reappeared on screens that hide it and navbar colors reset | Listener registered before the graph is assigned |

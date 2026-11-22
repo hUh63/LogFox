@@ -60,6 +60,18 @@ fun Context.shareIntent(text: String) = baseShareIntent {
     it.type = "text/plain"
 }
 
+/**
+ * Shares an already readable content Uri (a file opened from another app).
+ *
+ * Putting the file text in EXTRA_TEXT overflows the binder transaction for any real log
+ * and the failure was swallowed, so the share button looked simply dead.
+ */
+fun Context.shareUriIntent(uri: android.net.Uri, mimeType: String = "text/plain") = baseShareIntent {
+    it.putExtra(Intent.EXTRA_STREAM, uri)
+    it.type = mimeType
+    it.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+}
+
 fun Context.shareFileIntent(file: File) = baseShareIntent {
     val uri = file.asUri(this)
 

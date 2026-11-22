@@ -154,6 +154,12 @@ class MainActivity :
     }
 
     private fun ActivityMainBinding.setupNavigation(openCrashesOnStartup: Boolean) {
+        // Registered before the graph: assigning a graph dispatches the restored destination
+        // right away, and a listener added afterwards never receives it - so after a rotation
+        // the bottom bar stayed visible on screens that must hide it and the navbar colors
+        // were left at their defaults
+        navController.addOnDestinationChangedListener(this@MainActivity)
+
         navController.graph = navController.navInflater.inflate(NavGraphs.nav_graph).apply {
             setStartDestination(
                 startDestId = if (openCrashesOnStartup) {
@@ -165,8 +171,6 @@ class MainActivity :
         }
 
         barView?.setupWithNavController(navController)
-
-        navController.addOnDestinationChangedListener(this@MainActivity)
     }
 
     override fun onDestinationChanged(
