@@ -29,4 +29,14 @@ internal data class LogsState(
      * up to date.
      */
     val listRevision: Long = 0L,
+    /**
+     * Lines snapshotted when the export picker was opened.
+     *
+     * The export used to be computed after the system picker returned: meanwhile the buffer
+     * kept evicting old lines and the selection was pruned on every update, so the file could
+     * silently contain fewer lines than were selected - or be empty.
+     */
+    val pendingExportLines: List<LogLine>? = null,
+    /** Same snapshot trick for "save current logs" (which exports the visible list). */
+    val pendingSaveCurrentLines: List<LogLine>? = null,
 )

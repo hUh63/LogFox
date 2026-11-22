@@ -251,3 +251,11 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | MCP: stopping the service while `start()` was still binding left the port bound with no owner, so every later start failed with "port already in use" while the HTTP server kept serving | A stopped server refuses to come up and closes anything it bound during the race |
 | Opening a log file from another app and pressing share put the whole file into `EXTRA_TEXT` → `TransactionTooLargeException`, swallowed, button looked dead | Shares the file's content Uri with a read grant |
 | No `OnDestinationChangedListener` callback after a rotation (registered after the graph was set, which already dispatched), so the bottom bar reappeared on screens that hide it and navbar colors reset | Listener registered before the graph is assigned |
+## 1.17 — what you see is what gets exported
+
+| Problem | Fix |
+|---------|-----|
+| "Copy/export selected" took every selected id and only applied the level filter, ignoring the search query and user filters, while the toolbar counted only visible rows — so the clipboard/file could contain lines the list never showed | Copy, export, recording and "save current logs" all go through one `visibleLogs()` derivation that mirrors the list mapper |
+| The export content was computed after the system picker returned; the buffer kept evicting lines in the meantime, so an export could silently contain fewer lines than selected (or a 0-byte file) | The lines are snapshotted when the picker opens (`pendingExportLines` / `pendingSaveCurrentLines`) |
+| "Save current logs" exported the raw buffer (ignoring query/filters) and could write an empty file | Exports the visible list and does nothing when it is empty |
+| `EditFilterFragment` cached its level buttons with `by lazy`: after returning from the app picker the buttons neither showed the saved levels nor reacted to taps | Resolved per call, like `LogsFragment` already does |

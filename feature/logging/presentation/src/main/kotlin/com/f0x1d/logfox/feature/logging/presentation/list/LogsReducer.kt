@@ -4,6 +4,7 @@ import com.f0x1d.logfox.core.tea.ReduceResult
 import com.f0x1d.logfox.core.tea.Reducer
 import com.f0x1d.logfox.core.tea.noSideEffects
 import com.f0x1d.logfox.core.tea.withSideEffects
+import com.f0x1d.logfox.feature.filters.api.model.filterAndSearch
 import com.f0x1d.logfox.feature.logging.api.model.LogLine
 import javax.inject.Inject
 
@@ -128,7 +129,15 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
         }
 
         is LogsCommand.ExportSelectedClicked -> {
-            state.withSideEffects(LogsSideEffect.PrepareExport)
+            val lines = state.selectedLines()
+
+            if (lines.isEmpty()) {
+                // Nothing visible is selected: asking for a file name and writing an empty
+                // file is worse than doing nothing
+                state.noSideEffects()
+            } else {
+                state.copy(pendingExportLines = lines).withSideEffects(LogsSideEffect.PrepareExport)
+            }
         }
 
         is LogsCommand.ExportPickerReady -> {
@@ -138,16 +147,23 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
         }
 
         is LogsCommand.ExportSelectedTo -> {
-            state.withSideEffects(
+            state.copy(pendingExportLines = null).withSideEffects(
                 LogsSideEffect.ExportLogsTo(
                     uri = command.uri,
-                    lines = state.selectedLines(),
+                    lines = state.pendingExportLines ?: state.selectedLines(),
                 ),
             )
         }
 
         is LogsCommand.SaveCurrentLogsClicked -> {
-            state.withSideEffects(LogsSideEffect.PrepareSaveCurrentLogs)
+            val lines = state.visibleLogs()
+
+            if (lines.isEmpty()) {
+                state.noSideEffects()
+            } else {
+                state.copy(pendingSaveCurrentLines = lines)
+                    .withSideEffects(LogsSideEffect.PrepareSaveCurrentLogs)
+            }
         }
 
         is LogsCommand.SaveCurrentPickerReady -> {
@@ -157,10 +173,11 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
         }
 
         is LogsCommand.SaveCurrentLogsTo -> {
-            state.withSideEffects(
+            state.copy(pendingSaveCurrentLines = null).withSideEffects(
                 LogsSideEffect.ExportLogsTo(
                     uri = command.uri,
-                    lines = state.logs,
+                    // "Save current logs" means what the list shows, not the whole buffer
+                    lines = state.pendingSaveCurrentLines ?: state.visibleLogs(),
                 ),
             )
         }
@@ -304,10 +321,20 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
     private fun LogsState.selectedLines(): List<LogLine> =
         logsByIds(selectedIds)
 
+    /**
+     * Mirrors [LogsViewStateMapper] exactly: the toolbar counts only lines that survived the
+     * query and the user filters, so copy/export must use the same set. It previously ignored
+     * both, which put invisible lines into the clipboard and into exported files.
+     */
+    private fun LogsState.visibleLogs(): List<LogLine> =
+        logs.filterAndSearch(
+            filters = filters,
+            query = query,
+            caseSensitive = caseSensitive,
+        ).let { lines -> if (levelFilters.isEmpty()) lines else lines.filter { it.level in levelFilters } }
+
     private fun LogsState.logsByIds(ids: Set<Long>): List<LogLine> =
-        logs.filter { line ->
-            line.id in ids && (levelFilters.isEmpty() || line.level in levelFilters)
-        }.sortedBy { it.dateAndTime }
+        visibleLogs().filter { line -> line.id in ids }.sortedBy { it.dateAndTime }
 
     private fun Set<Long>.toggle(id: Long): Set<Long> =
         if (id in this) this - id else this + id

@@ -58,17 +58,20 @@ internal class EditFilterFragment :
         }
     }
 
-    private val levelButtons by lazy {
-        listOf(
-            binding.levelVerboseButton to 0,
-            binding.levelDebugButton to 1,
-            binding.levelInfoButton to 2,
-            binding.levelWarningButton to 3,
-            binding.levelErrorButton to 4,
-            binding.levelFatalButton to 5,
-            binding.levelSilentButton to 6,
-        )
-    }
+    /**
+     * Resolved on every call, not `by lazy`: returning from the app picker keeps this fragment
+     * (only the view is destroyed), so lazily cached buttons pointed at a dead view - the level
+     * buttons then neither showed the saved levels nor reacted to taps.
+     */
+    private fun levelButtons() = listOf(
+        binding.levelVerboseButton to 0,
+        binding.levelDebugButton to 1,
+        binding.levelInfoButton to 2,
+        binding.levelWarningButton to 3,
+        binding.levelErrorButton to 4,
+        binding.levelFatalButton to 5,
+        binding.levelSilentButton to 6,
+    )
 
     // Setters that update each field without firing its text-changed callback, so rendering state
     // back into the form is not mistaken for a user edit (which would mark the form dirty).
@@ -118,7 +121,7 @@ internal class EditFilterFragment :
         enabledButton.setOnClickListener {
             send(EditFilterCommand.ToggleEnabled)
         }
-        levelButtons.forEach { (button, which) ->
+        levelButtons().forEach { (button, which) ->
             button.setOnClickListener {
                 // MaterialButton flips isChecked in performClick() before this listener,
                 // so reading it here gives the state the user just chose
@@ -126,7 +129,7 @@ internal class EditFilterFragment :
             }
         }
         clearLevelsButton.setOnClickListener {
-            levelButtons.forEach { (button, _) -> button.isChecked = false }
+            levelButtons().forEach { (button, _) -> button.isChecked = false }
 
             send(EditFilterCommand.ClearLevels)
         }
@@ -160,7 +163,7 @@ internal class EditFilterFragment :
             setTextIfDifferent(tagText, state.tag.orEmpty(), setTagText)
             setTextIfDifferent(contentText, state.content.orEmpty(), setContentText)
 
-            levelButtons.forEach { (button, which) ->
+            levelButtons().forEach { (button, which) ->
                 val checked = state.enabledLogLevels.getOrElse(which) { false }
 
                 if (button.isChecked != checked) button.isChecked = checked
