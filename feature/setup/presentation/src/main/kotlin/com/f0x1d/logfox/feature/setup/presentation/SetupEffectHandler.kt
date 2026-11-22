@@ -19,6 +19,10 @@ internal class SetupEffectHandler @Inject constructor(
     private val getAdbCommandUseCase: GetAdbCommandUseCase,
 ) : EffectHandler<SetupSideEffect, SetupCommand> {
 
+    private companion object {
+        const val GRANT_TIMEOUT_MS = 90_000L
+    }
+
     override suspend fun handle(
         effect: SetupSideEffect,
         onCommand: suspend (SetupCommand) -> Unit,
