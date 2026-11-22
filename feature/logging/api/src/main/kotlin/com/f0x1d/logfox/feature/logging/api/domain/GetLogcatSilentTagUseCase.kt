@@ -9,5 +9,5 @@ package com.f0x1d.logfox.feature.logging.api.domain
  * is not muted.
  */
 interface GetLogcatSilentTagUseCase {
-    operator fun invoke(): String?
+    suspend operator fun invoke(): String?
 }

@@ -21,7 +21,13 @@ internal class LogsBufferDataSourceImpl @Inject constructor(
     override suspend fun add(logLine: LogLine, limit: Int) = withContext(defaultDispatcher) {
         mutex.withLock {
             buffer.add(logLine)
-            while (buffer.size > limit) {
+
+            // A limit of 0 (the setting accepted it) made every line evict itself: the list
+            // was always empty and lastLog() was always null, so restarts reset ids to 0 and
+            // crash context collection silently stopped working
+            val effectiveLimit = limit.coerceAtLeast(1)
+
+            while (buffer.size > effectiveLimit) {
                 buffer.removeFirst()
             }
         }

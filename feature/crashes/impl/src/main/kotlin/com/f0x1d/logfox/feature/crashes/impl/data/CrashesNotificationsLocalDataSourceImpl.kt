@@ -71,7 +71,11 @@ constructor(
                         Icons.ic_copy,
                         context.getString(android.R.string.copy),
                         context.makeBroadcastPendingIntent<CopyReceiver>(
-                            id = COPY_CRASH_INTENT_ID,
+                            // A shared request code made every crash notification reuse the
+                            // same PendingIntent: FLAG_UPDATE_CURRENT then replaced the
+                            // extras, so Copy on an older notification copied another
+                            // crash's log and even cancelled the wrong notification
+                            id = COPY_CRASH_INTENT_ID + appCrash.notificationId,
                             extras =
                             bundleOf(
                                 Intent.EXTRA_TEXT to crashLog,

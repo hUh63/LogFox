@@ -155,3 +155,24 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Filter editor: two fast back presses saved twice — the filter was created twice and `Close` popped both the editor and the list | `SaveAndClose` is handled once (atomic guard), later taps are ignored |
 | MCP: one connection could fire unlimited concurrent `tools/call` requests (read_logs collects 5 s of live output) and exhaust the shared IO pool | Request-level semaphore (8) in addition to the connection limit |
 | MCP: notification claimed "running on port N" even when the port was busy and nothing was listening | Start result is checked and the notification switches to a failure text |
+## 1.10 — core robustness, parser and export
+
+| Problem | Fix |
+|---------|-----|
+| Initial side effects ran outside the store guard: a `ForegroundServiceStartNotAllowedException` there crashed the process | Wrapped with the same cancellation-aware catch |
+| `Store.jobs` kept finished jobs forever (Main.immediate ran non-suspending handlers before registration) | Jobs are created `LAZY`, registered, then started |
+| Setting "displayed lines" to 0 made the buffer permanently empty (no logs, ids reset, crash context lost) | Limit is coerced to at least 1 |
+| Logcat `A` (ASSERT / `Log.wtf`) lines were dropped entirely (no enum entry → exception) | Falls back to FATAL |
+| Timestamps without a fractional part (and `.05` = 50 ms) were mis-parsed or threw, dropping the line | Pad/scale the fraction, handle the no-dot case |
+| Export/copy of thousands of logs formatted everything on the main thread | Moved to the IO dispatcher |
+| Regex filters compiled a `Regex` per log line | Compiled once per filtering pass |
+| `getprop` fallback for the logcat silent-tag check forked a process on the main thread and leaked its pipes | Runs on IO, pipes closed, child destroyed |
+| Crash notification "copy" shared one PendingIntent across notifications (copied another crash's log, cancelled the wrong notification) | Per-notification request code |
+| Export to a URI whose stream could not be opened "succeeded" with an empty file | Throws, so the caller reports failure |
+| Exporting content + file could leave a truncated file when the source was missing | Checked before writing |
+| Filter import read the whole file into memory twice | Streamed with a 64 MB cap |
+| Setup: a failed su/Shizuku grant still persisted that backend, leaving the app with no logs on every launch | Backend is saved only after the grant succeeds |
+| Disabling the same app twice added duplicate rows (non-unique index + REPLACE) | Insert only when absent |
+| Filter autosave debounce vs "save and close": the flush of an older snapshot could overwrite the final text | Non-final writes are skipped once close was requested |
+| Recordings could write the same batch twice (size trigger + stop raced) and a write failure broke the collection flow | Serialized dumps, failures contained, buffer only trimmed for the same recording generation |
+| MCP: bounded SSE channel dropped responses that already got 202 Accepted | Backpressure instead of dropping |

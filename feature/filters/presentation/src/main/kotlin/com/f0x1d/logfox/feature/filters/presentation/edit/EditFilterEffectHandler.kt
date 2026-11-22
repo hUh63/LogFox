@@ -66,7 +66,7 @@ internal class EditFilterEffectHandler @Inject constructor(
 
                 // Write the final snapshot right away, skipping the debounce window
                 pendingSave.set(null)
-                save(effect.save.copy())
+                save(effect.save.copy(), isFinal = true)
 
                 onCommand(EditFilterCommand.SavedAndClose)
             }
@@ -110,13 +110,17 @@ internal class EditFilterEffectHandler @Inject constructor(
         save(effect)
     }
 
-    private suspend fun save(effect: EditFilterSideEffect.SaveFilter) {
+    private suspend fun save(effect: EditFilterSideEffect.SaveFilter, isFinal: Boolean = false) {
         val version = saveVersion.incrementAndGet()
 
         saveMutex.withLock {
             // A newer snapshot is already queued up, writing this one would only
             // overwrite fresher text with older text
             if (version != saveVersion.get()) return@withLock
+
+            // A debounced flush that grabbed the old snapshot just before "save and close"
+            // could otherwise win the version race and overwrite the final text
+            if (!isFinal && closeRequested.get()) return@withLock
 
             if (effect.filter == null) {
                 createFilterUseCase(

@@ -103,15 +103,29 @@ internal class LogLineParserImpl @Inject constructor(
         val cleanTime = timeString.trim()
         val dotIndex = cleanTime.indexOf('.')
 
+        // No fractional part at all used to make take(-1) return "" and toLong() throw,
+        // dropping the whole line
+        if (dotIndex < 0) {
+            return cleanTime.toLong() * 1000
+        }
+
         val seconds = cleanTime.take(dotIndex).toLong()
-        val milliseconds = cleanTime.substring(dotIndex + 1).toLong()
+
+        // ".05" is 50 ms, not 5 ms: pad the fraction to milliseconds before parsing
+        val milliseconds = cleanTime.substring(dotIndex + 1)
+            .padEnd(3, '0')
+            .take(3)
+            .toLong()
 
         return seconds * 1000 + milliseconds
     }
 
     private fun parseLevel(level: String): LogLevel =
         LogLevel.entries.find { it.letter == level }
-            ?: throw IllegalArgumentException("Unknown log level: $level")
+            // `A` (ASSERT, Log.wtf / native __android_log_assert) has no enum entry.
+            // Throwing here made the whole line null and discarded it together with its
+            // crash context; treat it as the highest severity instead
+            ?: LogLevel.FATAL
 
     private companion object {
         // Format: time, uid, pid, tid, level, tag, message

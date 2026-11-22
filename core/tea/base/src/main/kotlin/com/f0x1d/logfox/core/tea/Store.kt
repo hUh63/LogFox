@@ -1,6 +1,7 @@
 package com.f0x1d.logfox.core.tea
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,7 +50,10 @@ class Store<State, Command, SideEffect>(
 
             effectHandlers.forEach { handler ->
                 val jobId = UUID.randomUUID().toString()
-                val job = scope.launch {
+                // LAZY: with Main.immediate a non-suspending handler ran to completion
+                // before the job was registered, so its finally removed nothing and the
+                // finished job stayed in `jobs` forever
+                val job = scope.launch(start = CoroutineStart.LAZY) {
                     try {
                         handler.handle(sideEffect) { cmd ->
                             withContext(Dispatchers.Main) {
@@ -67,6 +71,7 @@ class Store<State, Command, SideEffect>(
                     }
                 }
                 jobs[jobId] = job
+                job.start()
             }
         }
     }

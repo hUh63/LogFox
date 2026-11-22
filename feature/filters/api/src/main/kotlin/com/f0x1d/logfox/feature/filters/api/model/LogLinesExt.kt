@@ -24,8 +24,13 @@ fun List<LogLine>.filterAndSearch(
 private fun List<LogLine>.filterByExtendedFilters(filters: List<UserFilter>): List<LogLine> {
     if (filters.isEmpty()) return this
 
-    val includingFilters = filters.filter { it.including }
-    val excludingFilters = filters.filter { !it.including }
+    // Regexes are compiled once per filtering pass. Compiling inside the predicate meant
+    // one Regex (NFA build) per log line per filter, i.e. tens of thousands of compilations
+    // per refresh once a regex filter was enabled
+    val compiledFilters = filters.map { it.compile() }
+
+    val includingFilters = compiledFilters.filter { it.filter.including }
+    val excludingFilters = compiledFilters.filter { !it.filter.including }
 
     return filter { logLine ->
         val shouldExclude = excludingFilters.any {
@@ -48,14 +53,27 @@ private fun List<LogLine>.filterByExtendedFilters(filters: List<UserFilter>): Li
     }
 }
 
-private fun UserFilter.lineSuits(logLine: LogLine) =
-    (allowedLevels.isEmpty() || allowedLevels.contains(logLine.level)) &&
-    uid.equalsOrTrueIfNull(logLine.uid) &&
-    pid.equalsOrTrueIfNull(logLine.pid) &&
-    tid.equalsOrTrueIfNull(logLine.tid) &&
-    packageName.equalsOrTrueIfNull(logLine.packageName ?: "") &&
-    tag.matchesOrTrueIfNull(logLine.tag, tagRegex) &&
-    content.matchesOrTrueIfNull(logLine.content, contentRegex)
+private class CompiledFilter(
+    val filter: UserFilter,
+    private val tagMatcher: (String) -> Boolean,
+    private val contentMatcher: (String) -> Boolean,
+) {
+    fun lineSuits(logLine: LogLine) = with(filter) {
+        (allowedLevels.isEmpty() || allowedLevels.contains(logLine.level)) &&
+            uid.equalsOrTrueIfNull(logLine.uid) &&
+            pid.equalsOrTrueIfNull(logLine.pid) &&
+            tid.equalsOrTrueIfNull(logLine.tid) &&
+            packageName.equalsOrTrueIfNull(logLine.packageName ?: "") &&
+            tagMatcher(logLine.tag) &&
+            contentMatcher(logLine.content)
+    }
+}
+
+private fun UserFilter.compile() = CompiledFilter(
+    filter = this,
+    tagMatcher = compileMatcher(tag, tagRegex),
+    contentMatcher = compileMatcher(content, contentRegex),
+)
 
 private fun String?.equalsOrTrueIfNull(other: String) = if (this == null) true else other == this
 
@@ -64,12 +82,13 @@ private fun String?.equalsOrTrueIfNull(other: String) = if (this == null) true e
  * treated as a regular expression and matched against the whole log tag/content
  * (F0x1d/LogFox#240). An invalid pattern matches nothing instead of crashing/ignoring the filter.
  */
-private fun String?.matchesOrTrueIfNull(other: String, regex: Boolean): Boolean {
-    if (this == null) return true
+private fun compileMatcher(pattern: String?, regex: Boolean): (String) -> Boolean {
+    if (pattern == null) return { true }
 
-    if (!regex) return other.contains(this)
+    if (!regex) return { other -> other.contains(pattern) }
 
-    return runCatching {
-        Regex(this).containsMatchIn(other)
-    }.getOrDefault(false)
+    val compiled = runCatching { Regex(pattern) }.getOrNull()
+        ?: return { false }
+
+    return { other -> compiled.containsMatchIn(other) }
 }

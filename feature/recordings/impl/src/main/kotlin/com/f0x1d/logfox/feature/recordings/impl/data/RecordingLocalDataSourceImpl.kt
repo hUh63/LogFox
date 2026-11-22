@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -60,6 +61,10 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
 
     private val recordedLines = mutableListOf<LogLine>()
     private val linesMutex = Mutex()
+
+    // Serializes "snapshot -> write -> trim". Without it two dumps (size trigger + end())
+    // took the same snapshot and appended the identical block twice
+    private val dumpMutex = Mutex()
 
     override suspend fun record() = withContext(ioDispatcher) {
         linesMutex.withLock {
@@ -155,14 +160,14 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
         }
     }
 
-    private suspend fun dumpLines() {
+    private suspend fun dumpLines() = dumpMutex.withLock {
         val batch = linesMutex.withLock {
             if (recordedLines.isEmpty()) return@withLock emptyList()
 
             recordedLines.toList()
         }
 
-        if (batch.isEmpty()) return
+        if (batch.isEmpty()) return@withLock
 
         val content = batch.joinToString("\n") {
             logLineFormatterRepository.formatForExport(
@@ -170,19 +175,23 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
             )
         }
 
-        // Write first, drop the buffer afterwards. Clearing before the write meant an
-        // IOException (storage full, file removed) silently swallowed the whole batch and
-        // the user got a recording with an invisible hole
-        var written = false
+        val targetFile = fileMutex.withLock { recordingFile }
 
-        fileMutex.withLock {
-            recordingFile?.let { file ->
-                file.appendText(content + "\n")
-                written = true
-            }
-        }
+        if (targetFile == null) return@withLock
 
-        if (written) {
+        // A write failure must not escape: it used to break the whole logcat collection
+        // flow, and keeping the buffer made every following line retry the same failure
+        val written = runCatching {
+            targetFile.appendText(content + "\n")
+        }.onFailure { throwable ->
+            Timber.e(throwable, "Failed to write ${batch.size} recorded lines")
+        }.isSuccess
+
+        // Only drop what was actually written, and only if the recording was not restarted
+        // meanwhile (record() clears the buffer and switches the file itself)
+        val stillSameRecording = fileMutex.withLock { recordingFile === targetFile }
+
+        if (stillSameRecording) {
             linesMutex.withLock {
                 if (recordedLines.size >= batch.size) {
                     recordedLines.subList(0, batch.size).clear()
@@ -190,6 +199,10 @@ internal class RecordingLocalDataSourceImpl @Inject constructor(
                     recordedLines.clear()
                 }
             }
+        }
+
+        if (!written && stillSameRecording) {
+            Timber.w("Recording chunk could not be persisted, dropped ${batch.size} lines")
         }
     }
 

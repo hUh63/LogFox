@@ -37,7 +37,11 @@ internal class DisabledAppsRepositoryImpl @Inject constructor(
 
     override suspend fun checkApp(packageName: String, checked: Boolean) = withContext(ioDispatcher) {
         if (checked) {
-            disabledAppDataSource.insert(DisabledApp(packageName = packageName).toEntity())
+            // package_name is only a plain index, so REPLACE never fired: disabling the
+            // same app twice (double tap, two screens) added duplicate rows to the list
+            if (disabledAppDataSource.getByPackageName(packageName) == null) {
+                disabledAppDataSource.insert(DisabledApp(packageName = packageName).toEntity())
+            }
         } else {
             disabledAppDataSource.deleteByPackageName(packageName)
         }

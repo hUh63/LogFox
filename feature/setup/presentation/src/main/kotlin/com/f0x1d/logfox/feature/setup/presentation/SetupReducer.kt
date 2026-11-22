@@ -14,8 +14,10 @@ internal class SetupReducer @Inject constructor() : Reducer<SetupState, SetupCom
         state: SetupState,
         command: SetupCommand,
     ): ReduceResult<SetupState, SetupSideEffect> = when (command) {
+        // The backend must only be persisted after the grant actually succeeded. It used to
+        // be written on click, so a failed su/Shizuku prompt left the app with an
+        // unsupported backend saved: every later launch ended with an empty log list
         is SetupCommand.RootClicked -> state.withSideEffects(
-            SetupSideEffect.SelectTerminal(TerminalType.Root),
             SetupSideEffect.ExecuteRootCommand,
         )
 
@@ -25,7 +27,6 @@ internal class SetupReducer @Inject constructor() : Reducer<SetupState, SetupCom
         )
 
         is SetupCommand.ShizukuClicked -> state.withSideEffects(
-            SetupSideEffect.SelectTerminal(TerminalType.Shizuku),
             SetupSideEffect.ExecuteShizukuCommand,
         )
 
@@ -43,6 +44,7 @@ internal class SetupReducer @Inject constructor() : Reducer<SetupState, SetupCom
         ).noSideEffects()
 
         is SetupCommand.RootExecutionSucceeded -> state.withSideEffects(
+            SetupSideEffect.SelectTerminal(TerminalType.Root),
             SetupSideEffect.CheckPermission,
         )
 
@@ -51,6 +53,7 @@ internal class SetupReducer @Inject constructor() : Reducer<SetupState, SetupCom
         )
 
         is SetupCommand.ShizukuExecutionSucceeded -> state.withSideEffects(
+            SetupSideEffect.SelectTerminal(TerminalType.Shizuku),
             SetupSideEffect.RestartApp,
         )
 

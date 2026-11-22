@@ -839,10 +839,11 @@ internal class McpHttpServer(
     private class McpSession(
         val id: String,
     ) {
-        // Bounded on purpose. A client that opens /sse and never reads it made the writing
-        // side block while responses piled up without limit (read_logs alone can be
-        // hundreds of KB), which could OOM the foreground service
-        val channel = Channel<JsonObject>(capacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        // Bounded, and blocking instead of dropping. Dropping silently lost responses for
+        // requests that already received 202 Accepted - the client just waited until its
+        // own timeout. Backpressure suspends the producing coroutine (which holds a request
+        // permit), so a slow reader throttles itself instead of losing data or OOMing
+        val channel = Channel<JsonObject>(capacity = 1024)
     }
 
     private data class HttpRequest(

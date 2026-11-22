@@ -2,6 +2,7 @@ package com.f0x1d.logfox.core.tea
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -43,10 +44,19 @@ abstract class BaseStoreViewModel<ViewState, State, Command, SideEffect>(
         initialSideEffects.forEach { effect ->
             effectHandlers.forEach { handler ->
                 viewModelScope.launch {
-                    handler.handle(effect) { cmd ->
-                        withContext(Dispatchers.Main.immediate) {
-                            send(cmd)
+                    try {
+                        handler.handle(effect) { cmd ->
+                            withContext(Dispatchers.Main.immediate) {
+                                send(cmd)
+                            }
                         }
+                    } catch (throwable: Throwable) {
+                        if (throwable is CancellationException) throw throwable
+
+                        // These run outside Store.send, so a failure here (e.g.
+                        // ForegroundServiceStartNotAllowedException when the app is in
+                        // background) escaped viewModelScope and crashed the process
+                        throwable.printStackTrace()
                     }
                 }
             }

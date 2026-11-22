@@ -1,5 +1,6 @@
 package com.f0x1d.logfox.feature.logging.presentation.list
 
+import com.f0x1d.logfox.core.di.IODispatcher
 import com.f0x1d.logfox.core.tea.EffectHandler
 import com.f0x1d.logfox.feature.datetime.api.DateTimeFormatter
 import com.f0x1d.logfox.feature.filters.api.domain.GetAllEnabledFiltersFlowUseCase
@@ -18,7 +19,9 @@ import com.f0x1d.logfox.feature.preferences.api.domain.logs.GetResumeLoggingWith
 import com.f0x1d.logfox.feature.preferences.api.domain.service.GetLogFileExtensionUseCase
 import com.f0x1d.logfox.feature.recordings.api.domain.CreateRecordingFromLinesUseCase
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 internal class LogsEffectHandler @Inject constructor(
@@ -38,6 +41,7 @@ internal class LogsEffectHandler @Inject constructor(
     private val loggingServiceDelegate: LoggingServiceDelegate,
     private val getLogFileExtensionUseCase: GetLogFileExtensionUseCase,
     private val dateTimeFormatter: DateTimeFormatter,
+    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : EffectHandler<LogsSideEffect, LogsCommand> {
 
     override suspend fun handle(effect: LogsSideEffect, onCommand: suspend (LogsCommand) -> Unit) {
@@ -122,8 +126,11 @@ internal class LogsEffectHandler @Inject constructor(
             }
 
             is LogsSideEffect.FormatAndCopyLogs -> {
-                val formattedText = effect.lines.joinToString("\n") { line ->
-                    formatLogLineUseCase(line)
+                // Same as export: formatting thousands of lines belongs on the IO thread
+                val formattedText = withContext(ioDispatcher) {
+                    effect.lines.joinToString("\n") { line ->
+                        formatLogLineUseCase(line)
+                    }
                 }
                 onCommand(LogsCommand.CopyFormattedText(formattedText))
             }
