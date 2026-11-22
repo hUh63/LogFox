@@ -7,5 +7,6 @@ internal class SetupViewStateMapper @Inject constructor() : ViewStateMapper<Setu
     override fun map(state: SetupState) = SetupViewState(
         showAdbDialog = state.showAdbDialog,
         adbCommand = state.adbCommand,
+        isRunning = state.isRunning,
     )
 }

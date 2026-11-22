@@ -7,6 +7,7 @@ import com.f0x1d.logfox.feature.setup.api.domain.ExecuteGrantViaRootUseCase
 import com.f0x1d.logfox.feature.setup.api.domain.ExecuteGrantViaShizukuUseCase
 import com.f0x1d.logfox.feature.setup.api.domain.GetAdbCommandUseCase
 import com.f0x1d.logfox.feature.setup.api.domain.SelectTerminalUseCase
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 internal class SetupEffectHandler @Inject constructor(
@@ -24,7 +25,9 @@ internal class SetupEffectHandler @Inject constructor(
     ) {
         when (effect) {
             is SetupSideEffect.ExecuteRootCommand -> {
-                if (executeGrantViaRootUseCase()) {
+                // A su prompt that is never answered used to suspend this effect forever:
+                // no result, no error, buttons stuck
+                if (withTimeoutOrNull(GRANT_TIMEOUT_MS) { executeGrantViaRootUseCase() } == true) {
                     onCommand(SetupCommand.RootExecutionSucceeded)
                 } else {
                     onCommand(SetupCommand.RootExecutionFailed)
@@ -32,7 +35,7 @@ internal class SetupEffectHandler @Inject constructor(
             }
 
             is SetupSideEffect.ExecuteShizukuCommand -> {
-                if (executeGrantViaShizukuUseCase()) {
+                if (withTimeoutOrNull(GRANT_TIMEOUT_MS) { executeGrantViaShizukuUseCase() } == true) {
                     onCommand(SetupCommand.ShizukuExecutionSucceeded)
                 } else {
                     onCommand(SetupCommand.ShizukuExecutionFailed)
