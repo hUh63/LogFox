@@ -13,6 +13,10 @@ fun ZipOutputStream.putZipEntry(name: String, content: ByteArray) {
 }
 
 fun ZipOutputStream.putZipEntry(name: String, file: File) {
+    // Fail before creating the entry: otherwise a deleted source left a half-written zip
+    // at the user's chosen destination
+    require(file.exists()) { "Missing file for zip entry $name" }
+
     val entry = ZipEntry(name)
     putNextEntry(entry)
 

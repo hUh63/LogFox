@@ -17,5 +17,7 @@ data class UserFilter(
     val content: String? = null,
     val tagRegex: Boolean = false,
     val contentRegex: Boolean = false,
-    @GsonSkip val enabled: Boolean = true,
+    // Not GsonSkip: an exported filter must round-trip its enabled state, otherwise every
+    // disabled filter came back enabled and silently started filtering logs
+    val enabled: Boolean = true,
 ) : Identifiable

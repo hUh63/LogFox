@@ -71,6 +71,11 @@ internal interface AppCrashDao {
     @Query("UPDATE AppCrash SET is_deleted = 1, deleted_time = :time")
     suspend fun deleteAll(time: Long = System.currentTimeMillis())
 
+    // Targeted update: writing the whole row back blanked the legacy `log` column because
+    // the domain model does not carry it
+    @Query("UPDATE AppCrash SET is_deleted = 1, deleted_time = :time WHERE id = :id")
+    suspend fun markDeleted(id: Long, time: Long = System.currentTimeMillis())
+
     @Transaction
     suspend fun clearIfNeeded() {
         val itemsToDelete = getAll(deleted = true).filter {

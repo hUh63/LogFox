@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="crashes" />
+        <exclude domain="file" path="recordings" />
+        <exclude domain="file" path="dumps" />
+        <exclude domain="file" path="timber.log" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="crashes" />
+        <exclude domain="file" path="recordings" />
+        <exclude domain="file" path="dumps" />
+        <exclude domain="file" path="timber.log" />
+    </device-transfer>
+</data-extraction-rules>

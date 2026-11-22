@@ -66,7 +66,10 @@ internal class CrashesRepositoryImpl @Inject constructor(
 
     override suspend fun delete(item: AppCrash) = withContext(ioDispatcher) {
         item.deleteAssociatedFiles()
-        appCrashDataSource.delete(item.toEntity())
+
+        // Targeted update instead of writing the whole row: the domain model has no `log`,
+        // so a full @Update blanked the legacy crash body
+        appCrashDataSource.markDeleted(item.id)
 
         notificationsLocalDataSource.cancelCrashNotificationFor(item)
     }

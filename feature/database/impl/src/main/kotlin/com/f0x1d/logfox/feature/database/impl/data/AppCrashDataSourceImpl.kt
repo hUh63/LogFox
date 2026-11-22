@@ -36,6 +36,8 @@ internal class AppCrashDataSourceImpl @Inject constructor(
 
     override suspend fun delete(appCrash: AppCrashEntity) = dao.delete(appCrash.toRoom())
 
+    override suspend fun markDeleted(id: Long, time: Long) = dao.markDeleted(id, time)
+
     override suspend fun deleteByPackageName(packageName: String, time: Long) =
         dao.deleteByPackageName(packageName, time)
 

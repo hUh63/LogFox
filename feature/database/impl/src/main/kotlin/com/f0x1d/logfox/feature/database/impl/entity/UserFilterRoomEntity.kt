@@ -29,8 +29,11 @@ internal class AllowedLevelsConverter {
     fun toAllowedLevels(data: String): List<LogLevel> = when (data.isEmpty()) {
         true -> emptyList()
 
-        else -> data.split(",").map {
-            enumValues<LogLevel>()[it.toInt()]
+        // getOrNull instead of []: a level ordinal written by another build (or a future
+        // enum) used to throw ArrayIndexOutOfBoundsException, which killed the whole filter
+        // flow and with it the log list
+        else -> data.split(",").mapNotNull { value ->
+            value.toIntOrNull()?.let { ordinal -> LogLevel.entries.getOrNull(ordinal) }
         }
     }
 

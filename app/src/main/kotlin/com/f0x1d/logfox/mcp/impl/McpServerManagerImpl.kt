@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.UUID
 import timber.log.Timber
 import java.net.BindException
 import java.net.ServerSocket
@@ -59,17 +60,19 @@ class McpServerManagerImpl @Inject constructor(
         Timber.d("[MCP] McpServerManagerImpl initialized")
     }
 
-    override suspend fun start(port: Int) = lifecycleMutex.withLock {
-        startLocked(port)
+    override suspend fun start(port: Int) {
+        // publishState touches SharedPreferences (disk on first access), so it must not run
+        // while holding the lifecycle lock
+        val error = lifecycleMutex.withLock { startLocked(port) }
+
+        publishState(error = error)
     }
 
-    private suspend fun startLocked(port: Int) {
+    private suspend fun startLocked(port: Int): String? {
         if (server != null) {
             Timber.d("[MCP] Server already running on port ${this.port}")
 
-            publishState(error = null)
-
-            return
+            return null
         }
 
         Timber.d("[MCP] Server start requested on port $port")
@@ -78,14 +81,13 @@ class McpServerManagerImpl @Inject constructor(
         if (!isPortAvailable(port)) {
             Timber.e("[MCP] Port $port is busy, failed to start server")
 
-            publishState(error = "port $port is already in use")
-
-            return
+            return "port $port is already in use"
         }
 
         try {
             val instance = McpHttpServer(
                 port = port,
+                token = ensureToken(),
                 gson = gson,
                 tools = tools,
                 getLogsFlowUseCase = getLogsFlowUseCase,
@@ -95,30 +97,60 @@ class McpServerManagerImpl @Inject constructor(
                 getAllEnabledFiltersFlowUseCase = getAllEnabledFiltersFlowUseCase,
             )
 
-            instance.start()
-
+            // Publish the instance *before* starting: start() suspends on IO while binding,
+            // and if the service was destroyed in that window stopNow() saw server == null
+            // and left the bound socket (and its accept loop) running forever
             server = instance
             this.port = port
 
-            publishState(error = null)
+            try {
+                instance.start()
+            } catch (e: Exception) {
+                server = null
+                runCatching { instance.stop() }
+                throw e
+            }
 
             Timber.d("[MCP] Server start completed, isRunning=$isRunning")
+
+            null
         } catch (e: Exception) {
             Timber.e(e, "[MCP] Failed to start server on port $port")
 
-            publishState(error = e.message ?: e::class.java.simpleName)
+            e.message ?: e::class.java.simpleName
         }
     }
 
-    override suspend fun stop() = lifecycleMutex.withLock {
-        stopLocked()
+    /**
+     * Shared secret required by every request. Generated once and shown in the settings
+     * screen, otherwise any device on the same network (or a web page via CSRF) could read
+     * the whole logcat and clear it.
+     */
+    private fun ensureToken(): String {
+        val preferences = PreferenceManager.getDefaultSharedPreferences(context)
+
+        val existing = preferences.getString(PREF_MCP_SERVER_TOKEN, null)
+
+        if (!existing.isNullOrBlank()) return existing
+
+        val generated = UUID.randomUUID().toString().replace("-", "")
+
+        runCatching {
+            preferences.edit().putString(PREF_MCP_SERVER_TOKEN, generated).apply()
+        }
+
+        return generated
+    }
+
+    override suspend fun stop() {
+        lifecycleMutex.withLock { stopLocked() }
+
+        publishState(error = null)
     }
 
     private suspend fun stopLocked() {
         if (server == null) {
             Timber.d("[MCP] Server not running, ignoring")
-
-            publishState(error = null)
 
             return
         }
@@ -186,6 +218,7 @@ class McpServerManagerImpl @Inject constructor(
 
     private companion object {
         const val PREF_MCP_SERVER_RUNNING = "pref_mcp_server_running"
+        const val PREF_MCP_SERVER_TOKEN = "pref_mcp_server_token"
         const val PREF_MCP_SERVER_ACTIVE_PORT = "pref_mcp_server_active_port"
         const val PREF_MCP_SERVER_ERROR = "pref_mcp_server_error"
     }

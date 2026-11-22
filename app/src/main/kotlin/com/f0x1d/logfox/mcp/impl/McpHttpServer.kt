@@ -30,6 +30,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
@@ -57,6 +58,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 internal class McpHttpServer(
     private val port: Int,
+    // Shared secret. The server listens on all interfaces so AI clients on the LAN can reach
+    // it; without a token any device (or any web page via CSRF/DNS-rebinding) could read the
+    // whole logcat and clear it
+    private val token: String,
     private val gson: Gson,
     private val tools: Map<String, McpTool>,
     private val getLogsFlowUseCase: GetLogsFlowUseCase,
@@ -171,6 +176,27 @@ internal class McpHttpServer(
         }
     }
 
+    private fun isAuthorized(request: HttpRequest): Boolean {
+        if (token.isEmpty()) return true
+
+        val header = request.headers["authorization"]
+
+        if (header != null && header.equals("Bearer $token", ignoreCase = true)) return true
+
+        return request.query["token"] == token
+    }
+
+    private fun isAllowedOrigin(request: HttpRequest): Boolean {
+        if (request.headers["origin"] != null) return false
+
+        val host = request.headers["host"]?.substringBefore(':') ?: return true
+
+        // DNS rebinding uses an attacker-controlled host name that resolves to the device
+        if (host == "localhost" || host == "127.0.0.1" || host == "::1") return true
+
+        return LAN_HOST.matches(host)
+    }
+
     private suspend fun route(request: HttpRequest, output: OutputStream) {
         val path = request.path
 
@@ -181,6 +207,29 @@ internal class McpHttpServer(
                 output,
                 JsonObject().apply { addProperty("error", "Request body too large") },
                 status = "413 Payload Too Large",
+            )
+
+            return
+        }
+
+        if (!isAuthorized(request)) {
+            writeJson(
+                output,
+                JsonObject().apply { addProperty("error", "Unauthorized") },
+                status = "401 Unauthorized",
+            )
+
+            return
+        }
+
+        if (!isAllowedOrigin(request)) {
+            // A browser always sends Origin. Rejecting it stops any visited web page from
+            // firing a "simple request" (no preflight) at /logs/clear or reading /logs via
+            // DNS rebinding
+            writeJson(
+                output,
+                JsonObject().apply { addProperty("error", "Forbidden origin") },
+                status = "403 Forbidden",
             )
 
             return
@@ -245,7 +294,10 @@ internal class McpHttpServer(
             // disconnected immediately left a session in the map forever and every later
             // POST kept pushing responses into a channel nobody reads
             writeSseHeaders(output)
-            writeEvent(output, EVENT_ENDPOINT, "/messages?sessionId=${session.id}")
+            // The client posts to the URL we hand out here, so it must carry the token
+            val endpointSuffix = token.takeIf { it.isNotEmpty() }?.let { "&token=$it" }.orEmpty()
+
+            writeEvent(output, EVENT_ENDPOINT, "/messages?sessionId=${session.id}$endpointSuffix")
 
             Timber.d("[MCP] SSE opened, sessionId=${session.id}")
 
@@ -323,8 +375,13 @@ internal class McpHttpServer(
             // reads blocked this coroutine forever, and it kept holding a request permit -
             // enough stuck sessions exhausted the budget and every tool call hung
             if (response != null) {
-                runCatching { session.channel.send(response) }
-                    .onFailure { Timber.e(it, "[MCP] Failed to send to $sessionId") }
+                // Bounded wait: a client that stops reading would otherwise accumulate
+                // suspended coroutines (and their payloads) without limit
+                runCatching {
+                    withTimeoutOrNull(CHANNEL_SEND_TIMEOUT_MS) {
+                        session.channel.send(response)
+                    }
+                }.onFailure { Timber.e(it, "[MCP] Failed to send to $sessionId") }
             }
         }
     }
@@ -698,6 +755,7 @@ internal class McpHttpServer(
                 query = emptyMap(),
                 body = "",
                 oversized = true,
+                headers = headers,
             )
         }
 
@@ -721,7 +779,7 @@ internal class McpHttpServer(
             }.toMap()
         }
 
-        return HttpRequest(method = method, path = path, query = query, body = body)
+        return HttpRequest(method = method, path = path, query = query, body = body, headers = headers)
     }
 
     private fun readBody(input: BufferedInputStream, length: Int): String {
@@ -868,12 +926,18 @@ internal class McpHttpServer(
         val query: Map<String, String>,
         val body: String,
         val oversized: Boolean = false,
+        val headers: Map<String, String> = emptyMap(),
     )
 
     companion object {
         private const val TAG = "[MCP]"
 
         const val HOST = "0.0.0.0"
+
+        // Private ranges only: matches() is a full match, no anchors needed
+        private val LAN_HOST = Regex(
+            """(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})""",
+        )
 
         const val PROTOCOL_VERSION = "2024-11-05"
         const val SERVER_NAME = "LogFox"
@@ -901,6 +965,7 @@ internal class McpHttpServer(
         private const val SOCKET_TIMEOUT_MS = 15_000
         private const val MAX_CLIENTS = 32
         private const val MAX_CONCURRENT_REQUESTS = 8
+        private const val CHANNEL_SEND_TIMEOUT_MS = 10_000L
         private const val STREAM_TIMEOUT_MS = 10_000L
 
         private val ENDPOINTS = listOf(

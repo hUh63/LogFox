@@ -7,7 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import com.f0x1d.logfox.core.compat.mutablePendingIntentAvailable
+import android.os.Build
 
 const val CRASH_DETAILS_INTENT_ID = 0
 const val COPY_CRASH_INTENT_ID = 1
@@ -18,8 +18,10 @@ const val RESUME_RECORDING_INTENT_ID = 5
 const val STOP_RECORDING_INTENT_ID = 6
 const val OPEN_APP_INTENT_ID = 7
 
-val pendingIntentFlags = if (mutablePendingIntentAvailable) {
-    PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+// IMMUTABLE: nothing in the app relies on the system filling in extras, while a mutable
+// PendingIntent lets any app with notification access inject a clipboard payload
+val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
 } else {
     PendingIntent.FLAG_UPDATE_CURRENT
 }

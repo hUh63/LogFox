@@ -36,7 +36,8 @@ internal class LogsViewStateMapper @Inject constructor(
                     ),
                     expanded = state.expandedOverrides.getOrElse(line.id) { state.logsExpanded },
                     selected = line.id in state.selectedIds,
-                    textSize = state.textSize.toFloat(),
+                    // Guards against a 0 saved by an older build: 0 sp renders invisible rows
+                    textSize = state.textSize.coerceIn(6, 40).toFloat(),
                 )
             },
             logsChanged = state.logsChanged,

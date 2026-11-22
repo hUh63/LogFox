@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <files-path name="files" path="." />
+    <!-- Only the log directories are shareable. The previous root entry (path=".") made any
+         private file under filesDir addressable by a generated content URI -->
+    <files-path name="crashes" path="crashes" />
     <files-path name="recordings" path="recordings" />
     <files-path name="dumps" path="dumps" />
 </paths>

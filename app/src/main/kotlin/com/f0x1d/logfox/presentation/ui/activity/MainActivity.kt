@@ -113,16 +113,17 @@ class MainActivity :
     }
 
     private var notificationDialogShown = false
+    private var notificationDialog: androidx.appcompat.app.AlertDialog? = null
 
     private fun showNotificationPermissionDialogIfNeeded(state: MainViewState) {
         // render() runs on every state change; without this the dialog was re-created on top
-        // of itself each time
+        // of itself each time. Restored too, so a rotation does not stack a second dialog
         if (notificationDialogShown) return
 
         if (!hasNotificationsPermission() && !state.askedNotificationsPermission) {
             notificationDialogShown = true
 
-            MaterialAlertDialogBuilder(this@MainActivity)
+            notificationDialog = MaterialAlertDialogBuilder(this@MainActivity)
                 .setIcon(Icons.ic_dialog_notification_important)
                 .setTitle(Strings.no_notification_permission)
                 .setMessage(Strings.notification_permission_is_required)
@@ -139,6 +140,7 @@ class MainActivity :
                 }
                 .setOnDismissListener {
                     notificationDialogShown = false
+                    notificationDialog = null
                 }
                 .show()
         }
@@ -254,6 +256,11 @@ class MainActivity :
     }
 
     override fun onDestroy() {
+        // The permission dialog is a plain AlertDialog, so it is not restored by the system:
+        // dismiss it here to avoid a leaked window (and a stale dialog under the new one)
+        runCatching { notificationDialog?.dismiss() }
+        notificationDialog = null
+
         super.onDestroy()
         navController.removeOnDestinationChangedListener(this)
     }

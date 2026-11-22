@@ -11,6 +11,12 @@ import javax.inject.Inject
 internal class PreferencesUIReducer
 @Inject
 constructor() : Reducer<PreferencesUIState, PreferencesUICommand, PreferencesUISideEffect> {
+
+    private companion object {
+        const val LOGS_TEXT_SIZE_MIN = 6
+        const val LOGS_TEXT_SIZE_MAX = 40
+    }
+
     override fun reduce(
         state: PreferencesUIState,
         command: PreferencesUICommand,
@@ -51,8 +57,11 @@ constructor() : Reducer<PreferencesUIState, PreferencesUICommand, PreferencesUIS
         }
 
         is PreferencesUICommand.DateFormatChanged -> {
+            // Blank is not a valid pattern: SimpleDateFormat("") does not throw and renders
+            // an empty column, so `?:` alone was not enough
             val format =
-                command.format?.trim() ?: DateTimeSettingsRepository.DATE_FORMAT_DEFAULT
+                command.format?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: DateTimeSettingsRepository.DATE_FORMAT_DEFAULT
             state.copy(dateFormat = format).withSideEffects(
                 PreferencesUISideEffect.SaveDateFormat(format),
             )
@@ -60,7 +69,8 @@ constructor() : Reducer<PreferencesUIState, PreferencesUICommand, PreferencesUIS
 
         is PreferencesUICommand.TimeFormatChanged -> {
             val format =
-                command.format?.trim() ?: DateTimeSettingsRepository.TIME_FORMAT_DEFAULT
+                command.format?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: DateTimeSettingsRepository.TIME_FORMAT_DEFAULT
             state.copy(timeFormat = format).withSideEffects(
                 PreferencesUISideEffect.SaveTimeFormat(format),
             )
@@ -81,7 +91,9 @@ constructor() : Reducer<PreferencesUIState, PreferencesUICommand, PreferencesUIS
         }
 
         is PreferencesUICommand.LogsTextSizeChanged -> {
-            val size = command.size ?: LogsSettingsRepository.LOGS_TEXT_SIZE_DEFAULT
+            // 0 sp made every log line invisible ("rows exist but are empty")
+            val size = (command.size ?: LogsSettingsRepository.LOGS_TEXT_SIZE_DEFAULT)
+                .coerceIn(LOGS_TEXT_SIZE_MIN, LOGS_TEXT_SIZE_MAX)
             state.copy(logsTextSize = size).withSideEffects(
                 PreferencesUISideEffect.SaveLogsTextSize(size),
             )

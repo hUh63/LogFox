@@ -115,7 +115,9 @@ class LogFileViewerActivity : AppCompatActivity() {
     private fun load(intent: Intent?) {
         val uri = intent?.data
 
-        if (uri == null) {
+        // content:// only: a file:// URI let any app make LogFox open (and render) a private
+        // path with its own uid
+        if (uri == null || uri.scheme != "content") {
             finish()
             return
         }

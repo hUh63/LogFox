@@ -23,6 +23,8 @@ interface AppCrashDataSource {
 
     suspend fun delete(appCrash: AppCrashEntity)
 
+    suspend fun markDeleted(id: Long, time: Long = System.currentTimeMillis())
+
     suspend fun deleteByPackageName(packageName: String, time: Long = System.currentTimeMillis())
 
     suspend fun deleteAll(time: Long = System.currentTimeMillis())

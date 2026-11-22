@@ -30,7 +30,8 @@ internal class CrashExportRepositoryImpl @Inject constructor(
     override suspend fun exportToFile(crashId: Long, uri: Uri) = withContext(ioDispatcher) {
         // Everything below (PackageManager lookups, whole-file read + reformat) used to run
         // on the main thread, which froze the UI / triggered ANRs on large crash logs
-        val appCrash = crashesRepository.getById(crashId) ?: return@withContext
+        val appCrash = crashesRepository.getById(crashId)
+            ?: error("Crash $crashId no longer exists")
 
         val content = buildString {
             if (serviceSettingsRepository.includeDeviceInfoInArchives().value) {
@@ -43,6 +44,8 @@ internal class CrashExportRepositoryImpl @Inject constructor(
             }
             appCrash.logFile?.let { append(formatLogFileContent(it)) }
         }
+
+        if (content.isBlank()) error("Nothing to export for crash $crashId")
 
         exportRepository.writeContentToUri(uri, content)
     }

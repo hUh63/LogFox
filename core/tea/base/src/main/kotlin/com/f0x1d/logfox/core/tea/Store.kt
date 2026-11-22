@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +27,13 @@ class Store<State, Command, SideEffect>(
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private val _sideEffects = Channel<SideEffect>(capacity = Channel.UNLIMITED)
+    // Bounded: an unbounded channel buffered every navigation/toast produced while the UI
+    // was STOPPED and replayed them in a batch on return. Business effects are still
+    // dispatched to handlers directly below
+    private val _sideEffects = Channel<SideEffect>(
+        capacity = SIDE_EFFECTS_BUFFER,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
     val sideEffects: Flow<SideEffect> = _sideEffects.receiveAsFlow()
 
     private val jobs = ConcurrentHashMap<String, Job>()
@@ -92,5 +99,9 @@ class Store<State, Command, SideEffect>(
 
         _sideEffects.close()
         effectHandlers.forEach { it.close() }
+    }
+
+    private companion object {
+        const val SIDE_EFFECTS_BUFFER = 64
     }
 }

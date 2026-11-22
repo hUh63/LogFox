@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Crash/recorded logs contain other apps' stack traces and logcat output: they must
+         not leave the device through Auto Backup or device-to-device migration -->
+    <exclude domain="file" path="crashes" />
+    <exclude domain="file" path="recordings" />
+    <exclude domain="file" path="dumps" />
+    <exclude domain="file" path="timber.log" />
+</full-backup-content>

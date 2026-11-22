@@ -151,8 +151,12 @@ internal class PreferencesServiceFragment :
 
         findPreference<Preference>(PREF_MCP_SERVER_PORT)?.summary = getString(Strings.default_port, configuredPort.toString())
 
-        val localLink = if (running) "http://127.0.0.1:$activePort" else null
-        val lanLink = if (running) lanAddress()?.let { "http://$it:$activePort" } else null
+        // The server now requires a token, so the address without it would just answer 401
+        val token = preferences.getString(PREF_MCP_SERVER_TOKEN, null)
+        val tokenSuffix = token?.takeIf { it.isNotBlank() }?.let { "?token=$it" }.orEmpty()
+
+        val localLink = if (running) "http://127.0.0.1:$activePort$tokenSuffix" else null
+        val lanLink = if (running) lanAddress()?.let { "http://$it:$activePort$tokenSuffix" } else null
 
         findPreference<Preference>(PREF_MCP_SERVER_LOCAL_LINK)?.summary =
             localLink ?: getString(Strings.not_set)
@@ -343,6 +347,7 @@ internal class PreferencesServiceFragment :
         private const val PREF_MCP_SERVER_ENABLED_DEFAULT_V2 = "pref_mcp_server_enabled_default_v2"
         private const val PREF_MCP_SERVER_PORT = "pref_mcp_server_port"
         private const val PREF_MCP_SERVER_STATUS = "pref_mcp_server_status"
+        private const val PREF_MCP_SERVER_TOKEN = "pref_mcp_server_token"
         private const val PREF_MCP_SERVER_LOCAL_LINK = "pref_mcp_server_local_link"
         private const val PREF_MCP_SERVER_LAN_LINK = "pref_mcp_server_lan_link"
 

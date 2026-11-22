@@ -208,3 +208,26 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Problem | Fix |
 |---------|-----|
 | Room schema for the current version was never exported (`ksp { arg(...) }` was nested in `defaultConfig`, where it is ignored), so the next version bump would have no baseline for auto-migrations | Moved to a top-level `ksp` block; CI dumps the generated schema so it can be committed |
+## 1.14 — MCP authentication, backup/privacy, data boundaries
+
+| Problem | Fix |
+|---------|-----|
+| **MCP server had no authentication at all** while listening on 0.0.0.0: any device on the same Wi-Fi (or any local app) could read the whole logcat, clear it and overwrite the query | A random 32-char token is generated once, required on every request (`Authorization: Bearer` or `?token=`), and included in the addresses shown in settings; the SSE endpoint URL handed to the client contains it too |
+| Any visited web page could CSRF `POST /logs/clear` (simple request, no preflight) or read logs via DNS rebinding | Requests with an `Origin` header are rejected, and the `Host` header must be localhost/a private LAN address |
+| Auto Backup/D2D migration would upload crash and recorded logs (other apps' stack traces) to the cloud | Backup/extraction rules exclude `crashes/`, `recordings/`, `dumps/`, `timber.log` |
+| FileProvider exposed the entire `filesDir` | Only `crashes/`, `recordings/`, `dumps/` are shareable |
+| `LogFileViewerActivity` accepted `file://` URIs from any app | Only `content://` is accepted |
+| All PendingIntents were MUTABLE, letting any app with notification access inject the clipboard payload | IMMUTABLE |
+| Filter level ordinals out of range crashed the whole filter flow (`[...]` indexing) | `getOrNull` + drop unknown values |
+| Exported filters lost `enabled`, so disabled filters came back enabled and silently filtered logs | `enabled` is serialized again |
+| Deleting a crash blanked its legacy `log` body (whole-row update without that field) | Targeted `UPDATE ... WHERE id` |
+| Crash export wrote an empty/0-byte file when the crash was gone or had no content | Throws, so the UI reports a failure |
+| Zip export left a truncated archive when the source file was missing | Checked before writing the entry |
+| Blank date/time format was accepted (`SimpleDateFormat("")` does not throw) → empty date column, broken export file names | Blank falls back to the default |
+| Log text size 0 sp made every row invisible | Clamped to 6..40 (both in settings and when rendering already-saved values) |
+| MCP: `server` was assigned only after `start()` finished binding, so a destroy in that window left a bound socket with no owner | Assigned first, rolled back on failure |
+| MCP: a client that stopped reading accumulated suspended sends without limit | Send timeout (10 s) |
+| MCP: `publishState` touched SharedPreferences inside the lifecycle lock (main thread IO) | Moved out of the lock |
+| `TimberFileTree` only flushed on close, so a killed process lost up to 8 KB of logs | Flushes every 20 lines |
+| Notification permission dialog was not dismissed on configuration change (leaked window) | Dismissed in `onDestroy`, re-shown once after rotation |
+| Store side effects buffered without limit while the UI was stopped | Bounded channel (64) |
