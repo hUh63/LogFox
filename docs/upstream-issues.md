@@ -231,3 +231,11 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | `TimberFileTree` only flushed on close, so a killed process lost up to 8 KB of logs | Flushes every 20 lines |
 | Notification permission dialog was not dismissed on configuration change (leaked window) | Dismissed in `onDestroy`, re-shown once after rotation |
 | Store side effects buffered without limit while the UI was stopped | Bounded channel (64) |
+## 1.15 — list interaction consistency
+
+| Problem | Fix |
+|---------|-----|
+| "Select all" toggled to an empty selection on the second tap (deselected everything and left selection mode) | Tapping again keeps the selection; deselecting is the close button |
+| Toolbar claimed "N selected" while fewer rows were highlighted after a level filter, and copy/export included invisible lines | Counters follow the visible rows, and bulk operations skip lines hidden by the level filter |
+| Crash search ignored the sort setting (results always ordered by time while the main list used the chosen key) | Search combines the sort type and direction flows |
+| Fast double tap on a recording opened two detail sheets | `launchSingleTop` on that action |

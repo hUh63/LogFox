@@ -102,9 +102,17 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
         }
 
         is LogsCommand.SelectAll -> {
-            val newIds = if (state.selectedIds == command.visibleIds) emptySet() else command.visibleIds
-            state.copy(selectedIds = newIds, logsChanged = true)
-                .withSideEffects(LogsSideEffect.SyncSelectedLines(state.logsByIds(newIds)))
+            // "Select all" used to toggle to an empty selection on the second tap, which
+            // deselected everything and left selection mode - the opposite of the label.
+            // Deselecting is the job of the close button / ClearSelection.
+            if (state.selectedIds == command.visibleIds) {
+                state.noSideEffects()
+            } else {
+                state.copy(selectedIds = command.visibleIds, logsChanged = true)
+                    .withSideEffects(
+                        LogsSideEffect.SyncSelectedLines(state.logsByIds(command.visibleIds)),
+                    )
+            }
         }
 
         is LogsCommand.ClearSelection -> {
@@ -297,7 +305,9 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
         logsByIds(selectedIds)
 
     private fun LogsState.logsByIds(ids: Set<Long>): List<LogLine> =
-        logs.filter { it.id in ids }.sortedBy { it.dateAndTime }
+        logs.filter { line ->
+            line.id in ids && (levelFilters.isEmpty() || line.level in levelFilters)
+        }.sortedBy { it.dateAndTime }
 
     private fun Set<Long>.toggle(id: Long): Set<Long> =
         if (id in this) this - id else this + id

@@ -10,6 +10,7 @@
         android:label="RecordingsFragment" />
     <action
         android:id="@+id/action_recordingsFragment_to_recordingBottomSheet"
+        app:launchSingleTop="true"
         app:destination="@id/recordingBottomSheet" />
 
     <dialog

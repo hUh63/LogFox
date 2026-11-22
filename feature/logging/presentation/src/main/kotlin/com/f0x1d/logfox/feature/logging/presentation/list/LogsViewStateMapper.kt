@@ -45,8 +45,11 @@ internal class LogsViewStateMapper @Inject constructor(
             query = state.query,
             levelFilters = state.levelFilters,
             filters = state.filters,
-            selecting = state.selectedIds.isNotEmpty(),
-            selectedCount = state.selectedIds.size,
+            // Count only selected lines that survived the current query/filters. The toolbar
+            // used to claim "N selected" while far fewer rows were highlighted, and
+            // copy/export included lines the user could not see
+            selecting = filteredLogs.any { it.id in state.selectedIds },
+            selectedCount = filteredLogs.count { it.id in state.selectedIds },
             resumeLoggingWithBottomTouch = state.resumeLoggingWithBottomTouch,
             listRevision = state.listRevision,
         )
