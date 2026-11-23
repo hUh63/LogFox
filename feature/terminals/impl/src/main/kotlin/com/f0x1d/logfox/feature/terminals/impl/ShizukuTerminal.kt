@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.os.SystemClock
 import android.os.IBinder
 import android.os.ParcelFileDescriptor.AutoCloseInputStream
 import android.os.ParcelFileDescriptor.AutoCloseOutputStream
@@ -45,6 +46,8 @@ internal class ShizukuTerminal @Inject constructor(
         private const val BIND_TIMEOUT_MS = 15_000L
 
         private const val EXIT_CODE_FAILURE = 3
+
+        private const val PERMISSION_RETRY_COOLDOWN_MS = 5 * 60 * 1000L
     }
 
     override val type = TerminalType.Shizuku
@@ -56,6 +59,10 @@ internal class ShizukuTerminal @Inject constructor(
     // same time: the second dialog request is dropped by Shizuku, its listener never fires and
     // the 30 s timeout turned "already granted" into "not supported"
     private val permissionMutex = Mutex()
+
+    // Retrying the system dialog on every logging start would cost 30 s each time, so a
+    // denied request is only repeated after this cooldown
+    private var lastPermissionRequestAt = 0L
 
     @Volatile
     private var userService: IUserService? = null
@@ -92,9 +99,24 @@ internal class ShizukuTerminal @Inject constructor(
 
         Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED -> true
 
-        Shizuku.shouldShowRequestPermissionRationale() -> false
+        // Returning false forever meant a single "deny" (or an accidentally dismissed dialog)
+        // left this backend permanently unusable with no hint and no way to retry
+        Shizuku.shouldShowRequestPermissionRationale() -> {
+            val now = SystemClock.elapsedRealtime()
 
-        else -> withTimeoutOrNull(PERMISSION_TIMEOUT_MS) {
+            if (now - lastPermissionRequestAt < PERMISSION_RETRY_COOLDOWN_MS) {
+                false
+            } else {
+                lastPermissionRequestAt = now
+
+                requestPermissionDialog()
+            }
+        }
+
+        else -> requestPermissionDialog()
+    }
+
+    private suspend fun requestPermissionDialog(): Boolean = withTimeoutOrNull(PERMISSION_TIMEOUT_MS) {
             suspendCancellableCoroutine<Boolean> { continuation ->
                 val listener = object : Shizuku.OnRequestPermissionResultListener {
                     override fun onRequestPermissionResult(requestCode: Int, grantResult: Int) {
@@ -121,8 +143,7 @@ internal class ShizukuTerminal @Inject constructor(
                         if (continuation.isActive) continuation.resume(false)
                     }
             }
-        } ?: false
-    }
+    } ?: false
 
     private suspend fun ensureUserServiceBound(): Boolean = userServiceMutex.withLock {
         // Do NOT probe the cached proxy with `asBinder().isBinderAlive` here. The binder

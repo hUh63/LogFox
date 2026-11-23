@@ -38,7 +38,7 @@ constructor(
 
         context.doIfNotificationsAllowed {
             notify(
-                appCrash.packageName,
+                CRASH_TAG_PREFIX + appCrash.packageName,
                 appCrash.notificationId,
                 NotificationCompat
                     .Builder(
@@ -139,19 +139,35 @@ constructor(
     }
 
     override fun cancelCrashNotificationFor(appCrash: AppCrash) {
-        context.notificationManagerCompat.cancel(
-            appCrash.packageName,
-            appCrash.notificationId,
-        )
+        context.notificationManagerCompat.run {
+            cancel(CRASH_TAG_PREFIX + appCrash.packageName, appCrash.notificationId)
+
+            // Notifications posted by builds before the prefix existed used the bare package
+            // name as the tag, they would otherwise stay in the shade forever
+            cancel(appCrash.packageName, appCrash.notificationId)
+        }
     }
 
     override fun cancelAllCrashNotifications() = context.notificationManager.run {
         activeNotifications.forEach {
-            if (it.tag != null && it.tag.contains(".")) cancel(it.tag, it.id)
+            // An explicit prefix instead of "the tag contains a dot": that heuristic silently
+            // stopped matching (or started matching other notifications) as soon as any other
+            // notification used a package name as its tag
+            if (isCrashNotificationTag(it.tag)) cancel(it.tag, it.id)
         }
+    }
+
+    private fun isCrashNotificationTag(tag: String?): Boolean {
+        if (tag == null) return false
+        if (tag.startsWith(CRASH_TAG_PREFIX)) return true
+
+        // Legacy tag: a bare package name
+        return runCatching { context.packageManager.getPackageInfo(tag, 0) }.isSuccess
     }
 
     companion object {
         private const val CRASHES_CHANNEL_ID = "crashes"
+
+        private const val CRASH_TAG_PREFIX = "crash:"
     }
 }

@@ -298,3 +298,11 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Timber was never planted (`LOGGING_ENABLED` is a compile-time `false`), so every diagnostic log in the terminal/Shizuku/MCP code was a no-op | Debug builds plant `DebugTree` |
 | A failed logging-service start was swallowed, leaving an empty log list with no explanation and no route to setup | The failure is logged and the setup screen is opened |
 | Concurrent Shizuku permission requests dropped the second dialog and its 30 s timeout reported "not supported" for an already granted permission | Permission requests are serialized |
+## 1.23 — parser fallback, Shizuku retry, notification tags
+
+| Problem | Fix |
+|---------|-----|
+| The logcat header pattern assumed fixed widths (uid at least 5 chars, pid/tid at most 5 digits), so lines with `adb`/`sdcard` as uid, long pids or an empty message were silently dropped | A second, anchored and whitespace-tolerant pattern is tried before treating the line as a continuation |
+| A single "deny" on the Shizuku dialog disabled the backend forever: `shouldShowRequestPermissionRationale()` short-circuited to `false` | The dialog is requested again after a 5 minute cooldown, and the failure message tells the user to allow LogFox in the Shizuku app |
+| Crash notifications used the bare package name as their tag and `cancelAllCrashNotifications` guessed by "tag contains a dot" | Tags use an explicit `crash:` prefix (legacy tags still cancelled); the bulk cancel matches the prefix or a real package name |
+| Log timestamps were rendered in the device's default calendar, so Thai Buddhist / Japanese imperial / Persian devices showed non-Gregorian years | The formatters pin `GregorianCalendar` with the local time zone |

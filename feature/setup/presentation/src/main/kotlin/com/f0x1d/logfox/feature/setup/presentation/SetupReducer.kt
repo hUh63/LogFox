@@ -80,7 +80,7 @@ internal class SetupReducer @Inject constructor() : Reducer<SetupState, SetupCom
         is SetupCommand.ShizukuExecutionFailed -> state.copy(
             isRunning = false,
         ).withSideEffects(
-            SetupSideEffect.ShowSnackbar(Strings.shizuku_error),
+            SetupSideEffect.ShowSnackbar(Strings.shizuku_permission_denied),
         )
 
         is SetupCommand.PermissionGranted -> state.copy(

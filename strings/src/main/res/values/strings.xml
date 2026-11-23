@@ -171,6 +171,7 @@
     <string name="error_saving_logs">Error saving logs</string>
     <string name="recording_partially_saved">Recording saved, but some lines could not be written</string>
     <string name="invalid_regex">Invalid regular expression</string>
+    <string name="shizuku_permission_denied">Shizuku denied the permission. Allow LogFox in the Shizuku app, then try again</string>
     <string name="session_cache">Session cache</string>
     <string name="use_session_cache">Cache sessions</string>
     <string name="session_cache_description">These are the logs saved during the whole LogFox logging session, they may be helpful in case of sudden app or system crash. They are included with exported crashes</string>

@@ -159,6 +159,7 @@
     <string name="error_saving_logs">保存日志时发生错误</string>
     <string name="recording_partially_saved">录制已保存，但部分日志未能写入</string>
     <string name="invalid_regex">正则表达式无效</string>
+    <string name="shizuku_permission_denied">Shizuku 拒绝了授权。请在 Shizuku 应用中允许 LogFox 后重试</string>
     <string name="session_cache">会话缓存</string>
     <string name="use_session_cache">缓存会话</string>
     <string name="session_cache_description">这些是在整个 LogFox 日志会话期间保存的日志，在应用或系统突然崩溃时可能会有所帮助。它们包含在导出的崩溃信息中</string>

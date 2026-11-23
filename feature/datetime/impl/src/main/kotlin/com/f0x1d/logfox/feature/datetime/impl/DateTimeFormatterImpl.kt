@@ -6,7 +6,9 @@ import com.f0x1d.logfox.feature.datetime.api.DateTimeFormatter
 import com.f0x1d.logfox.feature.preferences.api.data.DateTimeSettingsRepository
 import com.f0x1d.logfox.feature.strings.Strings
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.GregorianCalendar
 import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
 
 internal class DateTimeFormatterImpl
@@ -79,6 +81,9 @@ constructor(
         runCatching { SimpleDateFormat(format, Locale.getDefault()) }
             .recoverCatching { SimpleDateFormat(fallback, Locale.getDefault()) }
             .getOrElse { SimpleDateFormat(fallback, Locale.getDefault()) }
+            // Without this a device whose default calendar is not Gregorian (Thai Buddhist,
+            // Japanese imperial, Persian) rendered log timestamps in that calendar's year
+            .apply { setCalendar(GregorianCalendar(TimeZone.getDefault())) }
 
     private val String.withReplacedBadSymbolsForFileName get() =
         replace(":", "-")

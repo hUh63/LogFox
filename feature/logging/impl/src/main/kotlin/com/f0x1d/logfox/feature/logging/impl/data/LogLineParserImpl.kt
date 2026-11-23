@@ -16,11 +16,18 @@ internal class LogLineParserImpl @Inject constructor(
 ) : LogLineParser {
 
     private val logRegex = LOG_REGEX.toRegex()
+
+    // Fallback for lines the fixed-width pattern cannot express: uid names shorter than five
+    // characters ("adb", "sdcard"), pids above five digits, a missing/ragged fraction, or an
+    // empty message. Group order is identical to LOG_REGEX, so the same indices apply.
+    private val relaxedLogRegex = RELAXED_LOG_REGEX.toRegex()
     private val uidRegex = UID_REGEX.toRegex()
     private val uidsCache = LruCache<String, String>(CACHE_SIZE)
 
     override fun parse(id: Long, line: String): LogLine? = runCatching {
-        val matchResult = logRegex.find(line.trim())
+        val trimmed = line.trim()
+
+        val matchResult = logRegex.find(trimmed) ?: relaxedLogRegex.find(trimmed)
 
         if (matchResult == null) {
             Timber.d("Match result is null for: $line")
@@ -130,6 +137,10 @@ internal class LogLineParserImpl @Inject constructor(
     private companion object {
         // Format: time, uid, pid, tid, level, tag, message
         const val LOG_REGEX = "(.{14}) (.{5,}?) (.{1,5}) (.{1,5}) (.) (.+?): (.+)"
+
+        // Anchored, whitespace-tolerant variant used only when LOG_REGEX does not match
+        const val RELAXED_LOG_REGEX =
+            "^(\\d{10}(?:\\.\\d{1,9})?) +(\\S{1,32}) +(\\d{1,10}) +(\\d{1,10}) +([VDIWEFAS]) +(.+?): ?(.*)$"
         const val UID_REGEX = "u(.+?).*a(.+)"
 
         const val CACHE_SIZE = 200
