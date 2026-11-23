@@ -2,13 +2,13 @@ package com.f0x1d.logfox.feature.datetime.impl
 
 import android.content.Context
 import android.icu.text.SimpleDateFormat
+import android.icu.util.GregorianCalendar
+import android.icu.util.TimeZone
 import com.f0x1d.logfox.feature.datetime.api.DateTimeFormatter
 import com.f0x1d.logfox.feature.preferences.api.data.DateTimeSettingsRepository
 import com.f0x1d.logfox.feature.strings.Strings
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.util.GregorianCalendar
 import java.util.Locale
-import java.util.TimeZone
 import javax.inject.Inject
 
 internal class DateTimeFormatterImpl

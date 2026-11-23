@@ -306,3 +306,12 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | A single "deny" on the Shizuku dialog disabled the backend forever: `shouldShowRequestPermissionRationale()` short-circuited to `false` | The dialog is requested again after a 5 minute cooldown, and the failure message tells the user to allow LogFox in the Shizuku app |
 | Crash notifications used the bare package name as their tag and `cancelAllCrashNotifications` guessed by "tag contains a dot" | Tags use an explicit `crash:` prefix (legacy tags still cancelled); the bulk cancel matches the prefix or a real package name |
 | Log timestamps were rendered in the device's default calendar, so Thai Buddhist / Japanese imperial / Persian devices showed non-Gregorian years | The formatters pin `GregorianCalendar` with the local time zone |
+## 1.24 — hot-path performance
+
+| Problem | Fix |
+|---------|-----|
+| The buffer snapshot was pushed every few hundred milliseconds even when nothing changed; the reducer bumped `listRevision` unconditionally, so the whole list (up to 10k rows) was re-filtered, re-formatted and re-diffed several times per second | Unchanged snapshots are dropped before the state is copied; id pruning only runs when there is something to prune |
+| The recorder called `suits()` for every log line, and each call compiled every regex filter again — thousands of `Regex` builds per second while recording | Compiled patterns are cached (bounded) |
+| Crash detection launched one coroutine and took one mutex per data source per log line | Sequential calls, no per-line coroutines |
+| Every appended line re-read the display-limit preference (new wrapper + SharedPreferences read) | Cached with a 5 s TTL |
+| Date formatters used `java.util.GregorianCalendar` with the `android.icu` formatter (compile error, build failed) | Uses `android.icu.util.GregorianCalendar` |

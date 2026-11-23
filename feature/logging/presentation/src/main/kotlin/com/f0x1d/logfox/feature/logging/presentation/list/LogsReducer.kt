@@ -34,15 +34,46 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
                     state.noSideEffects()
                 }
             } else {
+                val paramsChanged = command.query != state.query ||
+                    command.filters != state.filters ||
+                    command.caseSensitive != state.caseSensitive ||
+                    command.showLogValues != state.showLogValues
+
+                // The service pushes a buffer snapshot every few hundred milliseconds even
+                // when nothing arrived. Bumping listRevision for those re-filtered,
+                // re-formatted and re-diffed the whole list (up to 10k rows) several times a
+                // second, which showed up as jank, GC churn and battery drain
+                val logsUnchanged = !paramsChanged && (
+                    state.logs === command.logs ||
+                        (state.logs.size == command.logs.size &&
+                            state.logs.firstOrNull()?.id == command.logs.firstOrNull()?.id &&
+                            state.logs.lastOrNull()?.id == command.logs.lastOrNull()?.id &&
+                            // a continuation line updates the content of the last record
+                            state.logs.lastOrNull()?.content == command.logs.lastOrNull()?.content)
+                    )
+
+                if (logsUnchanged) return@reduce state.noSideEffects()
+
                 // Drop expand overrides of lines that were already evicted from the buffer:
                 // the map was only ever added to, so it grew for the whole session (and ids
-                // are reused after a clear, leaking stale expand state into new lines)
-                val visibleIds = command.logs.mapTo(HashSet(command.logs.size)) { it.id }
+                // are reused after a clear, leaking stale expand state into new lines).
+                // Building the id set is only needed when there is something to prune.
+                val needsPruning = state.selectedIds.isNotEmpty() || state.expandedOverrides.isNotEmpty()
+
+                val visibleIds = if (needsPruning) {
+                    command.logs.mapTo(HashSet(command.logs.size)) { it.id }
+                } else {
+                    null
+                }
 
                 // Selection must follow the buffer as well. Keeping ids that no longer
                 // exist left the toolbar stuck in selection mode with a count larger than
                 // the visible rows, and "copy/export selected" silently produced nothing
-                val selectedIds = state.selectedIds.filterTo(HashSet()) { it in visibleIds }
+                val selectedIds = if (visibleIds == null) {
+                    state.selectedIds
+                } else {
+                    state.selectedIds.filterTo(HashSet()) { it in visibleIds }
+                }
 
                 val newState = state.copy(
                     logs = command.logs,
@@ -50,7 +81,11 @@ internal class LogsReducer @Inject constructor() : Reducer<LogsState, LogsComman
                     caseSensitive = command.caseSensitive,
                     filters = command.filters,
                     showLogValues = command.showLogValues,
-                    expandedOverrides = state.expandedOverrides.filterKeys { it in visibleIds },
+                    expandedOverrides = if (visibleIds == null) {
+                        state.expandedOverrides
+                    } else {
+                        state.expandedOverrides.filterKeys { it in visibleIds }
+                    },
                     selectedIds = selectedIds,
                     logsChanged = true,
                     listRevision = state.listRevision + 1,

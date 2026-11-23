@@ -89,8 +89,28 @@ private fun compileMatcher(pattern: String?, regex: Boolean): (String) -> Boolea
 
     if (!regex) return { other -> other.contains(pattern) }
 
-    val compiled = runCatching { Regex(pattern) }.getOrNull()
-        ?: return { true }
+    val compiled = cachedRegex(pattern) ?: return { true }
 
     return { other -> compiled.containsMatchIn(other) }
+}
+
+/**
+ * Compilation is cached by pattern: inside a list pass each pattern was compiled once, but the
+ * recorder calls [suits] for every single log line, which silently turned into one Regex build
+ * per filter per line (thousands per second while recording).
+ */
+private val regexCache = java.util.concurrent.ConcurrentHashMap<String, Regex>()
+
+private const val MAX_CACHED_REGEX = 64
+
+private fun cachedRegex(pattern: String): Regex? {
+    regexCache[pattern]?.let { return it }
+
+    val compiled = runCatching { Regex(pattern) }.getOrNull() ?: return null
+
+    if (regexCache.size >= MAX_CACHED_REGEX) regexCache.clear()
+
+    regexCache[pattern] = compiled
+
+    return compiled
 }
