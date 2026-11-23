@@ -38,8 +38,11 @@ class LogFoxApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
 
-        if (BuildConfig.DEBUG && LOGGING_ENABLED) {
-            Timber.plant(timberFileTree)
+        // LOGGING_ENABLED is a compile-time false, so nothing was ever planted: every
+        // Timber call in the terminal/Shizuku/MCP code was a no-op and runtime failures were
+        // invisible (the file tree stays opt-in because it writes to disk on every line)
+        if (BuildConfig.DEBUG) {
+            Timber.plant(if (LOGGING_ENABLED) timberFileTree else Timber.DebugTree())
         }
         Timber.d("onCreate")
 

@@ -10,6 +10,7 @@ import com.f0x1d.logfox.feature.logging.presentation.service.LoggingService
 import com.f0x1d.logfox.feature.preferences.api.domain.notifications.SetAskedNotificationsPermissionUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.service.GetStopLoggingOnBackExitUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
+import timber.log.Timber
 import javax.inject.Inject
 
 internal class MainEffectHandler @Inject constructor(
@@ -22,16 +23,25 @@ internal class MainEffectHandler @Inject constructor(
     override suspend fun handle(effect: MainSideEffect, onCommand: suspend (MainCommand) -> Unit) {
         when (effect) {
             MainSideEffect.StartLoggingServiceIfNeeded -> {
-                if (context.hasPermissionToReadLogs) {
-                    Intent(context, LoggingService::class.java).let {
-                        if (startForegroundServiceAvailable) {
-                            context.startForegroundService(it)
-                        } else {
-                            context.startService(it)
-                        }
-                    }
-                } else {
+                if (!context.hasPermissionToReadLogs) {
                     onCommand(MainCommand.ShowSetup)
+                } else {
+                    // A failed start (background-start restriction, dead Shizuku/root backend)
+                    // used to swallow the exception and leave the user on an empty log list
+                    // with no explanation and no way to reach the setup screen
+                    val started = runCatching {
+                        Intent(context, LoggingService::class.java).let {
+                            if (startForegroundServiceAvailable) {
+                                context.startForegroundService(it)
+                            } else {
+                                context.startService(it)
+                            }
+                        }
+                    }.onFailure { throwable ->
+                        Timber.e(throwable, "Failed to start the logging service")
+                    }.isSuccess
+
+                    if (!started) onCommand(MainCommand.ShowSetup)
                 }
             }
 

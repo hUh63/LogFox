@@ -289,3 +289,12 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Continuation lines (stack traces, messages containing newlines) have no logcat header and were dropped — crash context was cut in half and multi-line messages lost their body | A record is held for 150 ms and continuation lines are appended to it; separator lines (`--------- beginning of …`) are ignored |
 | The `-T` resume timestamp was built without padding the milliseconds (`.5` = 500 ms, not 5 ms), so resuming collection started up to a second too late and those lines were lost | Milliseconds are zero-padded to three digits |
 | The date/time formatter cache stored pattern and formatter in two separate volatile fields, so a concurrent reader could format with the previous pattern after a settings change | Both live in one immutable holder written at once |
+## 1.22 — setup, terminals and diagnostics
+
+| Problem | Fix |
+|---------|-----|
+| An unanswered `su` prompt froze the setup screen forever: the blocking libsu call ignores cancellation, so the 90 s timeout never fired and the buttons stayed disabled | A watchdog reports the failure from a child coroutine; the reducer re-enables the screen |
+| `DefaultTerminal.executeNow` had no timeout and never destroyed the process, so a hanging command held an IO thread forever and leaked three streams per failure | 30 s timeout, process destroyed and streams closed in `finally` |
+| Timber was never planted (`LOGGING_ENABLED` is a compile-time `false`), so every diagnostic log in the terminal/Shizuku/MCP code was a no-op | Debug builds plant `DebugTree` |
+| A failed logging-service start was swallowed, leaving an empty log list with no explanation and no route to setup | The failure is logged and the setup screen is opened |
+| Concurrent Shizuku permission requests dropped the second dialog and its 30 s timeout reported "not supported" for an already granted permission | Permission requests are serialized |

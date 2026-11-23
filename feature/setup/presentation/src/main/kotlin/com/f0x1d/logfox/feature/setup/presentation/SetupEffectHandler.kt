@@ -7,6 +7,9 @@ import com.f0x1d.logfox.feature.setup.api.domain.ExecuteGrantViaRootUseCase
 import com.f0x1d.logfox.feature.setup.api.domain.ExecuteGrantViaShizukuUseCase
 import com.f0x1d.logfox.feature.setup.api.domain.GetAdbCommandUseCase
 import com.f0x1d.logfox.feature.setup.api.domain.SelectTerminalUseCase
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
@@ -23,6 +26,32 @@ internal class SetupEffectHandler @Inject constructor(
         const val GRANT_TIMEOUT_MS = 90_000L
     }
 
+    /**
+     * `withTimeoutOrNull` alone could not rescue these grants: the libsu / Shizuku calls block
+     * a thread and ignore cancellation, so the effect never returned and the setup buttons
+     * stayed disabled forever. The watchdog reports the failure from a child coroutine, which
+     * reaches the reducer even while the blocking call is still running.
+     */
+    private suspend fun runWithWatchdog(
+        onCommand: suspend (SetupCommand) -> Unit,
+        failureCommand: SetupCommand,
+        block: suspend () -> Boolean,
+    ): Boolean = coroutineScope {
+        val watchdog = launch {
+            delay(GRANT_TIMEOUT_MS)
+
+            onCommand(failureCommand)
+        }
+
+        val result = withTimeoutOrNull(GRANT_TIMEOUT_MS) {
+            runCatching { block() }.getOrDefault(false)
+        } ?: false
+
+        watchdog.cancel()
+
+        result
+    }
+
     override suspend fun handle(
         effect: SetupSideEffect,
         onCommand: suspend (SetupCommand) -> Unit,
@@ -31,19 +60,25 @@ internal class SetupEffectHandler @Inject constructor(
             is SetupSideEffect.ExecuteRootCommand -> {
                 // A su prompt that is never answered used to suspend this effect forever:
                 // no result, no error, buttons stuck
-                if (withTimeoutOrNull(GRANT_TIMEOUT_MS) { executeGrantViaRootUseCase() } == true) {
-                    onCommand(SetupCommand.RootExecutionSucceeded)
-                } else {
-                    onCommand(SetupCommand.RootExecutionFailed)
-                }
+                val granted = runWithWatchdog(
+                    onCommand = onCommand,
+                    failureCommand = SetupCommand.RootExecutionFailed,
+                ) { executeGrantViaRootUseCase() }
+
+                onCommand(
+                    if (granted) SetupCommand.RootExecutionSucceeded else SetupCommand.RootExecutionFailed,
+                )
             }
 
             is SetupSideEffect.ExecuteShizukuCommand -> {
-                if (withTimeoutOrNull(GRANT_TIMEOUT_MS) { executeGrantViaShizukuUseCase() } == true) {
-                    onCommand(SetupCommand.ShizukuExecutionSucceeded)
-                } else {
-                    onCommand(SetupCommand.ShizukuExecutionFailed)
-                }
+                val granted = runWithWatchdog(
+                    onCommand = onCommand,
+                    failureCommand = SetupCommand.ShizukuExecutionFailed,
+                ) { executeGrantViaShizukuUseCase() }
+
+                onCommand(
+                    if (granted) SetupCommand.ShizukuExecutionSucceeded else SetupCommand.ShizukuExecutionFailed,
+                )
             }
 
             is SetupSideEffect.SelectTerminal -> {

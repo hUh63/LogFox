@@ -52,6 +52,11 @@ internal class ShizukuTerminal @Inject constructor(
 
     private val userServiceMutex = Mutex()
 
+    // Two callers (setup screen + logging start-up) used to request the permission at the
+    // same time: the second dialog request is dropped by Shizuku, its listener never fires and
+    // the 30 s timeout turned "already granted" into "not supported"
+    private val permissionMutex = Mutex()
+
     @Volatile
     private var userService: IUserService? = null
 
@@ -76,7 +81,11 @@ internal class ShizukuTerminal @Inject constructor(
         return runCatching { ensureUserServiceBound() }.getOrDefault(false)
     }
 
-    private suspend fun ensurePermission(): Boolean = when {
+    private suspend fun ensurePermission(): Boolean = permissionMutex.withLock {
+        requestPermissionLocked()
+    }
+
+    private suspend fun requestPermissionLocked(): Boolean = when {
         runCatching { Shizuku.pingBinder() }.getOrDefault(false).not() -> false
 
         Shizuku.isPreV11() -> false
