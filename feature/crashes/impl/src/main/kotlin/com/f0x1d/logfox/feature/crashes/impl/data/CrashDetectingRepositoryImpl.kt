@@ -4,6 +4,7 @@ import com.f0x1d.logfox.feature.crashes.api.data.CrashDetectingRepository
 import com.f0x1d.logfox.feature.logging.api.model.LogLine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +22,15 @@ internal class CrashDetectingRepositoryImpl @Inject constructor(
         crashDataSources.forEachIndexed { index, dataSource ->
             mutexes[index].withLock {
                 dataSource.process(line)
+            }
+        }
+    }
+
+    override suspend fun flushPending() {
+        crashDataSources.forEachIndexed { index, dataSource ->
+            mutexes[index].withLock {
+                runCatching { dataSource.flushPending() }
+                    .onFailure { Timber.w(it, "Failed to flush pending crash") }
             }
         }
     }

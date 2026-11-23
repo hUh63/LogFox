@@ -105,13 +105,7 @@ constructor(
                     .Builder(
                         appCrash.notificationChannelId,
                         NotificationManagerCompat.IMPORTANCE_HIGH,
-                    ).setName(
-                        context.getString(
-                            Strings.crashes_of,
-                            crashTypeName,
-                            appCrash.packageName,
-                        ),
-                    )
+                    ).setName(context.getString(Strings.type_crashes, crashTypeName))
                     .setLightsEnabled(true)
                     .setVibrationEnabled(true)
                     .setGroup(groupId)

@@ -21,6 +21,8 @@ internal class LogsDataSourceImpl @Inject constructor(
     override val logs: Flow<List<LogLine>> get() = mutableLogs.asStateFlow()
 
     override suspend fun updateLogs(logs: List<LogLine>) = withContext(defaultDispatcher) {
-        mutableLogs.update { logs.toMutableList() }
+        // The buffer already hands out a fresh immutable list, copying it again every few
+        // hundred milliseconds just doubled the allocation of a 10k-element array
+        mutableLogs.value = logs
     }
 }

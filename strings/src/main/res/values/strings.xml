@@ -50,6 +50,7 @@
     <string name="selected">Selected</string>
     <string name="clear_selected">Clear selected</string>
     <string name="nothing_is_selected">Nothing is selected</string>
+    <string name="copy_all">Copy all</string>
     <string name="extended_copy">Extended copy</string>
     <string name="record">Record</string>
     <string name="stop">Stop</string>
@@ -225,6 +226,7 @@
     <string name="lan_link">LAN link</string>
     <string name="not_set">Not set</string>
     <string name="copied">Copied</string>
+    <string name="preview_truncated">Preview limited to the first %1$d characters. Use \"Copy all\" for the full text.</string>
     <string name="port_value">Port: %s</string>
     <string name="mcp_server_warning">The LAN link is reachable by any device on your network. Keep the server enabled only on trusted networks</string>
     <string name="preference_copied">\"%1$s\" copied to clipboard.</string>

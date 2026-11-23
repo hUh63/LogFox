@@ -19,4 +19,6 @@ internal class TerminalSettingsRepositoryImpl @Inject constructor(
     )
 
     override fun fallbackToDefaultTerminal(): PreferenceStateFlow<Boolean> = localDataSource.fallbackToDefaultTerminal().asPreferenceStateFlow()
+
+    override fun flushToDisk(): Boolean = localDataSource.flushToDisk()
 }

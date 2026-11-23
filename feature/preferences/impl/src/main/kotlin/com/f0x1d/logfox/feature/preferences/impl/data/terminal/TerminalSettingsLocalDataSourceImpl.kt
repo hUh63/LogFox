@@ -52,4 +52,7 @@ internal class TerminalSettingsLocalDataSourceImpl @Inject constructor(
         const val KEY_SELECTED_TERMINAL_TYPE = "pref_selected_terminal_type"
         const val KEY_FALLBACK_TO_DEFAULT_TERMINAL = "pref_fallback_to_default_terminal"
     }
+
+    override fun flushToDisk(): Boolean = sharedPreferences.edit().commit()
+
 }

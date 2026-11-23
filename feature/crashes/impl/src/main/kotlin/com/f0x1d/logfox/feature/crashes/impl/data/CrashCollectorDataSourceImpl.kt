@@ -11,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
+import timber.log.Timber
 import javax.inject.Inject
 
 internal class CrashCollectorDataSourceImpl @Inject constructor(
@@ -45,9 +46,13 @@ internal class CrashCollectorDataSourceImpl @Inject constructor(
         // and every crash left an orphan in filesDir/crashes that no cleanup ever removed
         val logFile = if (collecting) {
             withContext(ioDispatcher) {
-                File(logsDir, "${appCrash.dateAndTime}-crash.log").apply {
-                    writeText(crashLog)
-                }
+                // A failing disk must not swallow the crash itself: the row (and the
+                // notification) is more important than its log attachment
+                runCatching {
+                    File(logsDir, "${appCrash.dateAndTime}-crash.log").apply {
+                        writeText(crashLog)
+                    }
+                }.onFailure { Timber.w(it, "Failed to write crash log") }.getOrNull()
             }
         } else {
             null
@@ -63,7 +68,11 @@ internal class CrashCollectorDataSourceImpl @Inject constructor(
             // deleted crashes (and their file paths) accumulated forever
             runCatching { crashesRepository.clearDeletedIfNeeded() }
 
-            crashWithLog.copy(id = crashesRepository.insert(crashWithLog))
+            // The user asked to be told about every crash, so a failed insert still notifies
+            // (with id == 0 the notification simply has no deep link)
+            runCatching { crashWithLog.copy(id = crashesRepository.insert(crashWithLog)) }
+                .onFailure { Timber.e(it, "Failed to store crash ${appCrash.packageName}") }
+                .getOrElse { crashWithLog }
         } else {
             crashWithLog
         }

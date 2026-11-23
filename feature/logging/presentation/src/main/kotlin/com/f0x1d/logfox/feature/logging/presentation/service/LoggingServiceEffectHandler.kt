@@ -3,6 +3,7 @@ package com.f0x1d.logfox.feature.logging.presentation.service
 import android.content.Context
 import com.f0x1d.logfox.core.di.DefaultDispatcher
 import com.f0x1d.logfox.core.tea.EffectHandler
+import com.f0x1d.logfox.feature.crashes.api.domain.FlushPendingCrashesUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.ProcessLogLineCrashesUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.AddLogLineUseCase
 import com.f0x1d.logfox.feature.logging.api.domain.BroadcastLogEventUseCase
@@ -42,6 +43,7 @@ internal class LoggingServiceEffectHandler @Inject constructor(
     private val getLastLogUseCase: GetLastLogUseCase,
     private val updateLogsUseCase: UpdateLogsUseCase,
     private val processLogLineCrashesUseCase: ProcessLogLineCrashesUseCase,
+    private val flushPendingCrashesUseCase: FlushPendingCrashesUseCase,
     private val processLogLineRecordingUseCase: ProcessLogLineRecordingUseCase,
     private val notifyLoggingStoppedUseCase: NotifyLoggingStoppedUseCase,
     private val getSelectedTerminalUseCase: GetSelectedTerminalUseCase,
@@ -166,6 +168,13 @@ internal class LoggingServiceEffectHandler @Inject constructor(
                             val logs = getLogsSnapshotUseCase()
                             Timber.d("Sending ${logs.size} logs to store")
                             updateLogsUseCase(logs)
+                        }
+
+                        // A crash whose process died and nothing else logged stayed
+                        // "collecting" forever: it was neither stored nor notified until some
+                        // unrelated line arrived. This tick completes stale collections.
+                        step("crash-flush") {
+                            flushPendingCrashesUseCase()
                         }
                     }
                 }

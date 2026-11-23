@@ -6,4 +6,7 @@ import com.f0x1d.logfox.feature.terminals.api.base.TerminalType
 interface TerminalSettingsRepository {
     fun selectedTerminalType(): PreferenceStateFlow<TerminalType>
     fun fallbackToDefaultTerminal(): PreferenceStateFlow<Boolean>
+
+    /** Writes pending changes to disk synchronously (used right before a process restart). */
+    fun flushToDisk(): Boolean
 }

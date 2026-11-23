@@ -11,5 +11,10 @@ internal class SelectTerminalUseCaseImpl @Inject constructor(
 
     override suspend fun invoke(type: TerminalType) {
         terminalSettingsRepository.selectedTerminalType().set(type)
+
+        // The setup screen restarts the app right after granting access. `apply()` only
+        // schedules the disk write, and exitProcess() skips that queue, so the freshly chosen
+        // backend could be lost and the user had to authorize again on the next launch
+        terminalSettingsRepository.flushToDisk()
     }
 }

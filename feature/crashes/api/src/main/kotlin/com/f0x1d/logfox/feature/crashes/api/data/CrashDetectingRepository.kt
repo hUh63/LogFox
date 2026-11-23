@@ -4,4 +4,7 @@ import com.f0x1d.logfox.feature.logging.api.model.LogLine
 
 interface CrashDetectingRepository {
     suspend fun processLogLine(line: LogLine)
+
+    /** Completes crash collections that timed out (a crash followed by silence). */
+    suspend fun flushPending()
 }

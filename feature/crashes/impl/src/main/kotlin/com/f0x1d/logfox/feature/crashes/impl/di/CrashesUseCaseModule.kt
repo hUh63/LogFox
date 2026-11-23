@@ -12,6 +12,7 @@ import com.f0x1d.logfox.feature.crashes.api.domain.GetAllCrashesFlowUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.GetCrashAndLogByIdFlowUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.GetCrashByIdFlowUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.GetCrashesSearchQueryFlowUseCase
+import com.f0x1d.logfox.feature.crashes.api.domain.FlushPendingCrashesUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.ProcessLogLineCrashesUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.UpdateCrashesSearchQueryUseCase
 import com.f0x1d.logfox.feature.crashes.impl.domain.ClearAllCrashesUseCaseImpl
@@ -26,6 +27,7 @@ import com.f0x1d.logfox.feature.crashes.impl.domain.GetAllCrashesFlowUseCaseImpl
 import com.f0x1d.logfox.feature.crashes.impl.domain.GetCrashAndLogByIdFlowUseCaseImpl
 import com.f0x1d.logfox.feature.crashes.impl.domain.GetCrashByIdFlowUseCaseImpl
 import com.f0x1d.logfox.feature.crashes.impl.domain.GetCrashesSearchQueryFlowUseCaseImpl
+import com.f0x1d.logfox.feature.crashes.impl.domain.FlushPendingCrashesUseCaseImpl
 import com.f0x1d.logfox.feature.crashes.impl.domain.ProcessLogLineCrashesUseCaseImpl
 import com.f0x1d.logfox.feature.crashes.impl.domain.UpdateCrashesSearchQueryUseCaseImpl
 import dagger.Binds
@@ -71,6 +73,11 @@ internal interface CrashesUseCaseModule {
     fun bindProcessLogLineCrashesUseCase(
         impl: ProcessLogLineCrashesUseCaseImpl,
     ): ProcessLogLineCrashesUseCase
+
+    @Binds
+    fun bindFlushPendingCrashesUseCase(
+        impl: FlushPendingCrashesUseCaseImpl,
+    ): FlushPendingCrashesUseCase
 
     @Binds
     fun bindExportCrashToFileUseCase(

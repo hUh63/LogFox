@@ -43,6 +43,7 @@
     <string name="selected">选中操作</string>
     <string name="clear_selected">取消所选</string>
     <string name="nothing_is_selected">没有选中项</string>
+    <string name="copy_all">复制全部</string>
     <string name="extended_copy">自由复制</string>
     <string name="record">录制</string>
     <string name="stop">停止</string>
@@ -211,6 +212,7 @@
     <string name="lan_link">局域网链接</string>
     <string name="not_set">未设置</string>
     <string name="copied">已复制</string>
+    <string name="preview_truncated">预览仅显示前 %1$d 个字符，完整内容请使用\"复制全部\"。</string>
     <string name="port_value">当前端口：%s</string>
     <string name="mcp_server_warning">局域网链接可被同一网络内的任意设备访问，请仅在可信网络中启用服务器</string>
     <string name="preference_copied">已将“%1$s”复制到剪贴板。</string>

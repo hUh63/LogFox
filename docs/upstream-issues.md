@@ -315,3 +315,13 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Crash detection launched one coroutine and took one mutex per data source per log line | Sequential calls, no per-line coroutines |
 | Every appended line re-read the display-limit preference (new wrapper + SharedPreferences read) | Cached with a 5 s TTL |
 | Date formatters used `java.util.GregorianCalendar` with the `android.icu` formatter (compile error, build failed) | Uses `android.icu.util.GregorianCalendar` |
+## 1.25 — every crash is recorded, promptly
+
+| Problem | Fix |
+|---------|-----|
+| A crash followed by silence was never completed: collection only flushed when the *next* log line arrived, so the most common case (the process dies and nothing else logs) stored and notified nothing | The log-update tick also completes timed-out crash collections (`flushPending`), so a crash is stored and notified at most one tick after the collection window closes |
+| A failed crash-log write or a failed database insert aborted the whole collection: no row, no notification | Both are tolerated: a missing attachment or an unsaved row still notifies (the deep link is simply absent) |
+| Crash notifications created one channel per (type, package) — permanent, unremovable channels in the system settings, growing with every app that crashed | One channel per crash type (`crashes_Java` / `_JNI` / `_ANR`); the app name stays in the notification itself; old channels remain but receive nothing new |
+| The extended-copy screen laid out megabytes of text in one TextView on the main thread (two copies in memory) | The preview is capped at 200k characters and a "Copy all" button puts the complete text on the clipboard |
+| Each log tick copied the whole 10k-line buffer a second time | The snapshot list is stored as is |
+| The setup screen restarts the app right after granting access, but `apply()` had only scheduled the write — the newly chosen terminal could be lost, landing the user in setup again | The selection is flushed with `commit()` before the restart |

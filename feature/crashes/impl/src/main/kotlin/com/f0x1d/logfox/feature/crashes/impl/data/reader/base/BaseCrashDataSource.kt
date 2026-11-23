@@ -49,6 +49,15 @@ internal abstract class BaseCrashDataSource(
         }
     }
 
+    override suspend fun flushPending() {
+        if (!collecting) return
+
+        // Still inside the collection window: more lines may belong to this crash
+        if (collectionStartTime + timeBufferMs > System.currentTimeMillis()) return
+
+        emitCrashIfValid()
+    }
+
     private fun tryStartCollecting(line: LogLine) {
         if (isFirstLine(line)) {
             collecting = true

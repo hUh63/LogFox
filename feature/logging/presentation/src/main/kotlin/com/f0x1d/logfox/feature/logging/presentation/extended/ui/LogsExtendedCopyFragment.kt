@@ -12,6 +12,8 @@ import com.f0x1d.logfox.feature.logging.presentation.extended.LogsExtendedCopyCo
 import com.f0x1d.logfox.feature.logging.presentation.extended.LogsExtendedCopySideEffect
 import com.f0x1d.logfox.feature.logging.presentation.extended.LogsExtendedCopyState
 import com.f0x1d.logfox.feature.logging.presentation.extended.LogsExtendedCopyViewModel
+import com.f0x1d.logfox.core.context.toast
+import com.f0x1d.logfox.feature.strings.Strings
 import com.f0x1d.logfox.feature.logging.presentation.extended.LogsExtendedCopyViewState
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.insetter.applyInsetter
@@ -29,6 +31,14 @@ internal class LogsExtendedCopyFragment :
 
     override val viewModel by viewModels<LogsExtendedCopyViewModel>()
 
+    // The displayed text is capped, the clipboard gets the whole thing
+    private var fullText: String? = null
+
+    private companion object {
+        // TextView layout is O(n) on the main thread, the full text stays available for copying
+        const val MAX_PREVIEW_CHARS = 200_000
+    }
+
     override fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?) = FragmentLogsExtendedCopyBinding.inflate(inflater, container, false)
 
     override fun FragmentLogsExtendedCopyBinding.onViewCreated(
@@ -41,14 +51,40 @@ internal class LogsExtendedCopyFragment :
             }
         }
         toolbar.setupBackButtonForNavController()
+
+        copyAllButton.setOnClickListener {
+            val text = fullText ?: return@setOnClickListener
+
+            val ctx = context ?: return@setOnClickListener
+
+            ctx.getSystemService(android.content.ClipboardManager::class.java)?.let { manager ->
+                manager.setPrimaryClip(
+                    android.content.ClipData.newPlainText(getString(Strings.app_name), text),
+                )
+
+                ctx.toast(Strings.copied)
+            }
+        }
     }
 
     override fun render(state: LogsExtendedCopyViewState) {
+        fullText = state.text
+
+        // A megabyte-long string in one TextView is measured and laid out on the main thread;
+        // the preview is capped and the complete text is available through "copy all"
+        val text = state.text ?: return
+
+        val preview = if (text.length > MAX_PREVIEW_CHARS) {
+            text.take(MAX_PREVIEW_CHARS) + "\n" + getString(Strings.preview_truncated, MAX_PREVIEW_CHARS)
+        } else {
+            text
+        }
+
         // render() is called on every state change and the text can be megabytes: re-setting
         // it rebuilt the Editable, re-measured the whole string and dropped the user's
         // selection each time
-        if (binding.logText.text?.toString() != state.text) {
-            binding.logText.text = state.text
+        if (binding.logText.text?.toString() != preview) {
+            binding.logText.text = preview
         }
     }
 
