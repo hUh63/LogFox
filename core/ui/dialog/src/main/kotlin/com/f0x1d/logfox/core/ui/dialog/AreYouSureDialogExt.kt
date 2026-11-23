@@ -15,7 +15,7 @@ fun FragmentActivity.showAreYouSureDialog(
     .setTitle(title)
     .setMessage(message)
     .setPositiveButton(Strings.yes) { _, _ -> okClicked() }
-    .setNeutralButton(Strings.no, null)
+    .setNegativeButton(Strings.no, null)
     .show()
 
 fun FragmentActivity.showAreYouSureDeleteDialog(okClicked: () -> Unit) = showAreYouSureDialog(

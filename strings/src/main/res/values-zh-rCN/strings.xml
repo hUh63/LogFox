@@ -212,6 +212,7 @@
     <string name="lan_link">局域网链接</string>
     <string name="not_set">未设置</string>
     <string name="copied">已复制</string>
+    <string name="back">返回</string>
     <string name="preview_truncated">预览仅显示前 %1$d 个字符，完整内容请使用\"复制全部\"。</string>
     <string name="port_value">当前端口：%s</string>
     <string name="mcp_server_warning">局域网链接可被同一网络内的任意设备访问，请仅在可信网络中启用服务器</string>

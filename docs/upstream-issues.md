@@ -325,3 +325,12 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | The extended-copy screen laid out megabytes of text in one TextView on the main thread (two copies in memory) | The preview is capped at 200k characters and a "Copy all" button puts the complete text on the clipboard |
 | Each log tick copied the whole 10k-line buffer a second time | The snapshot list is stored as is |
 | The setup screen restarts the app right after granting access, but `apply()` had only scheduled the write — the newly chosen terminal could be lost, landing the user in setup again | The selection is flushed with `commit()` before the restart |
+## 1.26 — UI state and interaction
+
+| Problem | Fix |
+|---------|-----|
+| A replayed side effect could navigate to setup twice, leaving two setup screens on the back stack (two backs to leave) | The navigation checks the current destination first |
+| Opening a second log file (or rotating) while the first was still loading let the older read win: file B's title with file A's text | Only one load runs at a time and a result is dropped when the intent changed meanwhile |
+| Rotation re-read and re-laid-out the whole file and repeated the "too large" toast | The hint is shown once per file |
+| The icon-only back button had no label, so TalkBack announced only "Button" | Labelled |
+| The confirm dialog put "No" on the neutral button | Negative button |

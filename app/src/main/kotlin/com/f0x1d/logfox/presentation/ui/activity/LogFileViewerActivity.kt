@@ -14,6 +14,7 @@ import com.f0x1d.logfox.core.context.toast
 import com.f0x1d.logfox.databinding.ActivityLogFileViewerBinding
 import com.f0x1d.logfox.feature.strings.Strings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -34,6 +35,7 @@ class LogFileViewerActivity : AppCompatActivity() {
         private const val MAX_RENDER_CHARS = 500_000
 
         private const val KEY_WRAPPED = "wrapped"
+        private const val KEY_TRUNCATION_NOTIFIED = "truncation_notified"
     }
 
     private lateinit var binding: ActivityLogFileViewerBinding
@@ -41,6 +43,11 @@ class LogFileViewerActivity : AppCompatActivity() {
     private var fileContent: String? = null
     private var renderedText: String? = null
     private var wrapped = true
+
+    // Loading a second file (or re-creating the activity) used to start a parallel read: the
+    // slower, older one could win and show file A's text under file B's title
+    private var loadJob: Job? = null
+    private var truncationNotified = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +86,7 @@ class LogFileViewerActivity : AppCompatActivity() {
         }
 
         wrapped = savedInstanceState?.getBoolean(KEY_WRAPPED, true) ?: true
+        truncationNotified = savedInstanceState?.getBoolean(KEY_TRUNCATION_NOTIFIED) ?: false
 
         applyWrap()
         load(intent)
@@ -88,6 +96,7 @@ class LogFileViewerActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
 
         outState.putBoolean(KEY_WRAPPED, wrapped)
+        outState.putBoolean(KEY_TRUNCATION_NOTIFIED, truncationNotified)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -134,8 +143,13 @@ class LogFileViewerActivity : AppCompatActivity() {
 
         binding.toolbar.title = displayName(uri)
 
-        lifecycleScope.launch {
+        loadJob?.cancel()
+
+        loadJob = lifecycleScope.launch {
             val content = withContext(Dispatchers.IO) { readContent(uri) }
+
+            // A newer intent or another activity instance superseded this load
+            if (intent?.data != uri) return@launch
 
             if (content == null) {
                 toast(Strings.cannot_open_file)
@@ -147,7 +161,13 @@ class LogFileViewerActivity : AppCompatActivity() {
 
             if (content.length > MAX_RENDER_CHARS) {
                 renderedText = content.take(MAX_RENDER_CHARS)
-                toast(Strings.file_too_large_to_render)
+
+                // Re-created on rotation (the content is re-read) without spamming the hint
+                if (!truncationNotified) {
+                    truncationNotified = true
+
+                    toast(Strings.file_too_large_to_render)
+                }
             } else {
                 renderedText = content
             }

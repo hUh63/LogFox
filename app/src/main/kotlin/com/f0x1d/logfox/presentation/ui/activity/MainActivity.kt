@@ -96,9 +96,16 @@ class MainActivity :
 
         viewModel.sideEffects.collectWithLifecycle { sideEffect ->
             when (sideEffect) {
-                MainSideEffect.OpenSetup -> navController.navigate(
-                    Directions.action_global_setupFragment,
-                )
+                MainSideEffect.OpenSetup -> {
+                    // A UI side effect produced while the activity was stopped is queued in
+                    // the store and replayed on the recreated instance. Navigating again
+                    // pushed a second setup screen, so two backs were needed to leave it
+                    if (navController.currentDestination?.id != Directions.setupFragment) {
+                        runCatching {
+                            navController.navigate(Directions.action_global_setupFragment)
+                        }
+                    }
+                }
 
                 MainSideEffect.FinishActivity -> finish()
 
