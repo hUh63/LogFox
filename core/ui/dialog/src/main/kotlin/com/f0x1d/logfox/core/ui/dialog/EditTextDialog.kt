@@ -35,19 +35,22 @@ fun Context.showEditTextDialog(
                 }
                 .setNegativeButton(Strings.close, null)
                 .apply(setupDialog)
-                .setOnShowListener {
-                    dialogBinding.text.apply {
-                        requestFocus()
-                        setSelection(text?.length ?: 0)
 
-                        postDelayed({
-                            context.getSystemService<InputMethodManager>()?.showSoftInput(
-                                this,
-                                InputMethodManager.SHOW_IMPLICIT,
-                            )
-                        }, 100)
-                    }
+            // setOnShowListener lives on the dialog, not on the builder. Posting on the
+            // inflated view runs once the dialog window has attached it.
+            dialogBinding.root.post {
+                dialogBinding.text.apply {
+                    requestFocus()
+                    setSelection(text?.length ?: 0)
+
+                    postDelayed({
+                        context.getSystemService<InputMethodManager>()?.showSoftInput(
+                            this,
+                            InputMethodManager.SHOW_IMPLICIT,
+                        )
+                    }, 100)
                 }
+            }
         },
     )
 }

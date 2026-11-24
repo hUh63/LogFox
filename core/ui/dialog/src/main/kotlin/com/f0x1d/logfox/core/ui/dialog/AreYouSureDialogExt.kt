@@ -15,13 +15,11 @@ fun FragmentActivity.showAreYouSureDialog(
 
 fun FragmentActivity.showAreYouSureDeleteDialog(okClicked: () -> Unit) = showAreYouSureDialog(
     title = Strings.delete,
-    message = Strings.are_you_sure_delete,
     okClicked = okClicked,
 )
 
 fun FragmentActivity.showAreYouSureClearDialog(okClicked: () -> Unit) = showAreYouSureDialog(
     title = Strings.clear,
-    message = Strings.are_you_sure_clear,
     okClicked = okClicked,
 )
 
@@ -33,13 +31,11 @@ fun Fragment.showAreYouSureDialog(
 
 fun Fragment.showAreYouSureDeleteDialog(okClicked: () -> Unit) = showAreYouSureDialog(
     title = Strings.delete,
-    message = Strings.are_you_sure_delete,
     okClicked = okClicked,
 )
 
 fun Fragment.showAreYouSureClearDialog(okClicked: () -> Unit) = showAreYouSureDialog(
     title = Strings.clear,
-    message = Strings.are_you_sure_clear,
     okClicked = okClicked,
 )
 
