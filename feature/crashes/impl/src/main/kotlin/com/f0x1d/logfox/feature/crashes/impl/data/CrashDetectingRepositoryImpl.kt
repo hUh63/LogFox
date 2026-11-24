@@ -2,6 +2,7 @@ package com.f0x1d.logfox.feature.crashes.impl.data
 
 import com.f0x1d.logfox.feature.crashes.api.data.CrashDetectingRepository
 import com.f0x1d.logfox.feature.logging.api.model.LogLine
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
@@ -21,16 +22,27 @@ internal class CrashDetectingRepositoryImpl @Inject constructor(
         // independent and their work is cheap: sequential calls are enough
         crashDataSources.forEachIndexed { index, dataSource ->
             mutexes[index].withLock {
-                dataSource.process(line)
+                runCatching { dataSource.process(line) }
+                    .onFailure {
+                        if (it is CancellationException) throw it
+
+                        // Java, JNI and ANR detectors share each log line. A failure in one
+                        // must not prevent the others from seeing it
+                        Timber.w(it, "Crash detector failed for a log line")
+                    }
             }
         }
     }
 
-    override suspend fun flushPending() {
+    override suspend fun flushPending(force: Boolean) {
         crashDataSources.forEachIndexed { index, dataSource ->
             mutexes[index].withLock {
-                runCatching { dataSource.flushPending() }
-                    .onFailure { Timber.w(it, "Failed to flush pending crash") }
+                runCatching { dataSource.flushPending(force) }
+                    .onFailure {
+                        if (it is CancellationException) throw it
+
+                        Timber.w(it, "Failed to flush pending crash")
+                    }
             }
         }
     }

@@ -77,6 +77,9 @@ fun Context.shareFileIntent(file: File) = baseShareIntent {
 
     it.putExtra(Intent.EXTRA_STREAM, uri)
     it.type = "text/plain"
+    // FileProvider grants access through this flag; without it the receiving app gets a
+    // SecurityException even though the URI itself was created successfully
+    it.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 }
 
 private fun Context.baseShareIntent(block: (Intent) -> Unit) {

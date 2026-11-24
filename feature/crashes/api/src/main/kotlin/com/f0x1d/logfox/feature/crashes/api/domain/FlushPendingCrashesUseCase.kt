@@ -8,5 +8,5 @@ package com.f0x1d.logfox.feature.crashes.api.domain
  * stored nor notified until unrelated output happened to show up (or never).
  */
 interface FlushPendingCrashesUseCase {
-    suspend operator fun invoke()
+    suspend operator fun invoke(force: Boolean = false)
 }

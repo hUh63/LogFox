@@ -5,17 +5,19 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 class Store<State, Command, SideEffect>(
     initialState: State,
@@ -27,14 +29,27 @@ class Store<State, Command, SideEffect>(
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    // Bounded: an unbounded channel buffered every navigation/toast produced while the UI
-    // was STOPPED and replayed them in a batch on return. Business effects are still
-    // dispatched to handlers directly below
-    private val _sideEffects = Channel<SideEffect>(
-        capacity = SIDE_EFFECTS_BUFFER,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-    val sideEffects: Flow<SideEffect> = _sideEffects.receiveAsFlow()
+    // UI effects are one-shot events, so they must only be delivered while somebody is
+    // collecting. A bare Channel buffers effects while the view is STOPPED and replays them
+    // to the recreated view (duplicate navigation/toasts); without a subscriber the effect
+    // is dropped instead. On a fresh subscription we also drain anything buffered by an
+    // exiting subscriber so nothing from the previous view leaks into the new one.
+    private val _sideEffects = Channel<SideEffect>(capacity = SIDE_EFFECTS_BUFFER)
+    private val activeCollectors = AtomicInteger(0)
+    val sideEffects: Flow<SideEffect> = flow {
+        if (activeCollectors.incrementAndGet() == 1) {
+            while (true) {
+                val buffered = _sideEffects.tryReceive()
+                if (buffered.isFailure || buffered.getOrNull() == null) break
+            }
+        }
+
+        try {
+            emitAll(_sideEffects.receiveAsFlow())
+        } finally {
+            activeCollectors.decrementAndGet()
+        }
+    }
 
     private val jobs = ConcurrentHashMap<String, Job>()
 

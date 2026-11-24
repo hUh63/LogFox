@@ -1,7 +1,9 @@
 package com.f0x1d.logfox.core.ui.preference
 
+import androidx.fragment.app.FragmentActivity
 import androidx.preference.Preference
 import com.f0x1d.logfox.core.ui.dialog.databinding.DialogTextBinding
+import com.f0x1d.logfox.core.ui.dialog.showCallbackDialog
 import com.f0x1d.logfox.core.ui.dialog.showEditTextDialog
 import com.f0x1d.logfox.feature.strings.Strings
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -28,14 +30,20 @@ fun Preference.setupAsListPreference(
     selected: () -> Int,
     onSelected: (Int) -> Unit,
 ) = setOnPreferenceClickListener {
-    MaterialAlertDialogBuilder(context)
-        .setTitle(title)
-        .setSingleChoiceItems(items, selected()) { dialog, which ->
-            dialog.cancel()
-            onSelected(which)
-        }
-        .setPositiveButton(Strings.close, null)
-        .apply(setupDialog)
-        .show()
+    // A plain Activity-owned dialog lost its selection callback on rotation; keeping it in
+    // the FragmentManager means the choice is still delivered after a configuration change
+    (context as? FragmentActivity)?.supportFragmentManager?.showCallbackDialog(
+        tag = "list_preference_$title",
+        configure = { _, _, builder ->
+            builder
+                .setTitle(title)
+                .setSingleChoiceItems(items, selected()) { dialog, which ->
+                    dialog.cancel()
+                    onSelected(which)
+                }
+                .setPositiveButton(Strings.close, null)
+                .apply(setupDialog)
+        },
+    )
     return@setOnPreferenceClickListener true
 }

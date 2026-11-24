@@ -6,6 +6,8 @@ import com.f0x1d.logfox.feature.crashes.impl.data.AppInfoDataSource
 import com.f0x1d.logfox.feature.crashes.impl.data.CrashCollectorDataSource
 import com.f0x1d.logfox.feature.crashes.impl.data.CrashDataSource
 import com.f0x1d.logfox.feature.logging.api.model.LogLine
+import kotlinx.coroutines.CancellationException
+import timber.log.Timber
 
 internal abstract class BaseCrashDataSource(
     private val appInfoDataSource: AppInfoDataSource,
@@ -49,11 +51,12 @@ internal abstract class BaseCrashDataSource(
         }
     }
 
-    override suspend fun flushPending() {
+    override suspend fun flushPending(force: Boolean) {
         if (!collecting) return
 
-        // Still inside the collection window: more lines may belong to this crash
-        if (collectionStartTime + timeBufferMs > System.currentTimeMillis()) return
+        // Still inside the collection window: more lines may belong to this crash. The
+        // final flush (logging stopped) opts out so a pending crash is not lost.
+        if (!force && collectionStartTime + timeBufferMs > System.currentTimeMillis()) return
 
         emitCrashIfValid()
     }
@@ -79,6 +82,12 @@ internal abstract class BaseCrashDataSource(
                 )
                 crashCollectorDataSource.collectCrash(crash, collectedLines.toList())
             }
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+
+            // process() must return to tryStartCollecting() even when this crash fails,
+            // otherwise the *next* crash's first line was consumed and never detected
+            Timber.e(throwable, "Failed to collect a crash")
         } finally {
             // Always reset. A single failure used to leave `collecting` stuck on true, so no
             // crash was detected again for the rest of the process and `collectedLines`

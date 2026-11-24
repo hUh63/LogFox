@@ -182,6 +182,9 @@ internal class LoggingServiceEffectHandler @Inject constructor(
 
             is LoggingServiceSideEffect.CancelLogUpdates -> {
                 Timber.d("Cancelling log updates")
+                // The periodic flusher is going away: settle any crash still inside its
+                // collection window so it is stored and notified before logging stops
+                step("final-crash-flush") { flushPendingCrashesUseCase(force = true) }
                 logUpdatesJob?.cancel()
                 logUpdatesJob = null
             }

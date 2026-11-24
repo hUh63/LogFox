@@ -28,18 +28,26 @@ internal class CrashCollectorDataSourceImpl @Inject constructor(
     }
 
     override suspend fun collectCrash(appCrash: AppCrash, logLines: List<LogLine>) {
-        if (disabledAppsRepository.isDisabledFor(appCrash.packageName)) return
+        // A lookup failure must not make the crash disappear: treat it as "not disabled"
+        // and "not a duplicate" and let the insert/notification below decide
+        if (runCatching { disabledAppsRepository.isDisabledFor(appCrash.packageName) }
+                .onFailure { Timber.w(it, "Failed to read disabled apps") }
+                .getOrDefault(false)) return
 
         // Avoid duplicates
-        val existingCrashes = crashesRepository.getAllByDateAndTime(
-            dateAndTime = appCrash.dateAndTime,
-            packageName = appCrash.packageName,
-        )
-        if (existingCrashes.isNotEmpty()) return
+        val existingCrashes = runCatching {
+            crashesRepository.getAllByDateAndTime(
+                dateAndTime = appCrash.dateAndTime,
+                packageName = appCrash.packageName,
+            )
+        }.onFailure { Timber.w(it, "Failed to check for duplicate crash") }.getOrNull()
+        if (!existingCrashes.isNullOrEmpty()) return
 
         val crashLog = logLines.joinToString(separator = "\n") { it.originalContent }
 
-        val collecting = crashesSettingsRepository.collectingFor(appCrash.crashType.name)
+        val collecting = runCatching { crashesSettingsRepository.collectingFor(appCrash.crashType.name) }
+            .onFailure { Timber.w(it, "Failed to read crash collection setting") }
+            .getOrDefault(true)
 
         // Only persist the log file when the crash is actually collected. It used to be
         // written unconditionally, so with collection disabled nothing referenced the file
@@ -77,8 +85,15 @@ internal class CrashCollectorDataSourceImpl @Inject constructor(
             crashWithLog
         }
 
-        if (crashesSettingsRepository.showingNotificationsFor(finalCrash.crashType.name)) {
-            notificationsLocalDataSource.sendErrorNotification(finalCrash, crashLog)
+        val showingNotifications = runCatching {
+            crashesSettingsRepository.showingNotificationsFor(finalCrash.crashType.name)
+        }.onFailure { Timber.w(it, "Failed to read crash notification setting") }.getOrDefault(true)
+
+        if (showingNotifications) {
+            // Notifications can fail (restricted channel, dead PendingIntent); that must
+            // neither propagate into the log pipeline nor stop other pending crashes
+            runCatching { notificationsLocalDataSource.sendErrorNotification(finalCrash, crashLog) }
+                .onFailure { Timber.e(it, "Failed to notify crash ${appCrash.packageName}") }
         }
     }
 }

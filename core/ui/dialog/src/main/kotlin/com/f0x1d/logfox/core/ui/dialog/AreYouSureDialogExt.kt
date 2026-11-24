@@ -2,6 +2,7 @@ package com.f0x1d.logfox.core.ui.dialog
 
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.FragmentManager
 import com.f0x1d.logfox.core.ui.icons.Icons
 import com.f0x1d.logfox.feature.strings.Strings
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -10,22 +11,17 @@ fun FragmentActivity.showAreYouSureDialog(
     title: Int,
     message: Int = Strings.are_you_sure,
     okClicked: () -> Unit,
-) = MaterialAlertDialogBuilder(this)
-    .setIcon(Icons.ic_dialog_warning)
-    .setTitle(title)
-    .setMessage(message)
-    .setPositiveButton(Strings.yes) { _, _ -> okClicked() }
-    .setNegativeButton(Strings.no, null)
-    .show()
+) = supportFragmentManager.showAreYouSureDialog(title, message, okClicked)
 
 fun FragmentActivity.showAreYouSureDeleteDialog(okClicked: () -> Unit) = showAreYouSureDialog(
     title = Strings.delete,
-    message = Strings.delete_warning,
+    message = Strings.are_you_sure_delete,
     okClicked = okClicked,
 )
+
 fun FragmentActivity.showAreYouSureClearDialog(okClicked: () -> Unit) = showAreYouSureDialog(
     title = Strings.clear,
-    message = Strings.clear_warning,
+    message = Strings.are_you_sure_clear,
     okClicked = okClicked,
 )
 
@@ -33,11 +29,32 @@ fun Fragment.showAreYouSureDialog(
     title: Int,
     message: Int = Strings.are_you_sure,
     okClicked: () -> Unit,
-) = requireActivity().showAreYouSureDialog(
-    title = title,
-    message = message,
+) = parentFragmentManager.showAreYouSureDialog(title, message, okClicked)
+
+fun Fragment.showAreYouSureDeleteDialog(okClicked: () -> Unit) = showAreYouSureDialog(
+    title = Strings.delete,
+    message = Strings.are_you_sure_delete,
     okClicked = okClicked,
 )
 
-fun Fragment.showAreYouSureDeleteDialog(okClicked: () -> Unit) = requireActivity().showAreYouSureDeleteDialog(okClicked)
-fun Fragment.showAreYouSureClearDialog(okClicked: () -> Unit) = requireActivity().showAreYouSureClearDialog(okClicked)
+fun Fragment.showAreYouSureClearDialog(okClicked: () -> Unit) = showAreYouSureDialog(
+    title = Strings.clear,
+    message = Strings.are_you_sure_clear,
+    okClicked = okClicked,
+)
+
+private fun FragmentManager.showAreYouSureDialog(
+    title: Int,
+    message: Int,
+    okClicked: () -> Unit,
+) = showCallbackDialog(
+    tag = "are_you_sure_${title}_${message}",
+    configure = { _, _, builder ->
+        builder
+            .setIcon(Icons.ic_dialog_warning)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(Strings.yes) { _, _ -> okClicked() }
+            .setNegativeButton(Strings.no, null)
+    },
+)

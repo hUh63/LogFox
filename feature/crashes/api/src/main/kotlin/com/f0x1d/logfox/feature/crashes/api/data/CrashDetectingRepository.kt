@@ -6,5 +6,5 @@ interface CrashDetectingRepository {
     suspend fun processLogLine(line: LogLine)
 
     /** Completes crash collections that timed out (a crash followed by silence). */
-    suspend fun flushPending()
+    suspend fun flushPending(force: Boolean = false)
 }

@@ -8,7 +8,7 @@ internal class FlushPendingCrashesUseCaseImpl @Inject constructor(
     private val crashDetectingRepository: CrashDetectingRepository,
 ) : FlushPendingCrashesUseCase {
 
-    override suspend fun invoke() {
-        crashDetectingRepository.flushPending()
+    override suspend fun invoke(force: Boolean) {
+        crashDetectingRepository.flushPending(force)
     }
 }

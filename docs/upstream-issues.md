@@ -334,3 +334,14 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | Rotation re-read and re-laid-out the whole file and repeated the "too large" toast | The hint is shown once per file |
 | The icon-only back button had no label, so TalkBack announced only "Button" | Labelled |
 | The confirm dialog put "No" on the neutral button | Negative button |
+
+## 1.27 — dialogs retained, one-shot effects, crash completeness
+
+| Problem | Fix |
+|---------|-----|
+| Every confirmation/edit dialog was an Activity-owned AlertDialog: rotating destroyed it along with the callback and the typed text | All dialogs are now DialogFragment-based; callbacks and in-progress text survive rotation; duplicate dialogs are suppressed |
+| Side effects stayed buffered in a Channel while a view was stopped and were replayed to the recreated view | A fresh subscription now drains leftovers; effects produced without an active subscriber are not replayed |
+| Re-opening a log file after rotation re-read the file and re-laid out the whole text | The content is cached in a ViewModel for the activity lifetime |
+| A crash that failed to notify aborted collect(): the next crash's first line was consumed and lost; one failing detector blocked the others | Every step is isolated, and the final flush on logging stop settles pending crashes even inside the collection window |
+| Sharing a saved log via FileProvider had no read permission grant | Added FLAG_GRANT_READ_URI_PERMISSION |
+| Size-capped file reads could end in the middle of a UTF-8 character | Decoding stops on the last complete character |
