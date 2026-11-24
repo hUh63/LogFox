@@ -240,3 +240,4 @@ private fun decodeUtf8(bytes: ByteArray): String {
     while (endIndex > 0 && (bytes[endIndex - 1].toInt() and 0xC0) == 0x80) endIndex--
     return bytes.decodeToString(endIndex = endIndex)
 }
+}
