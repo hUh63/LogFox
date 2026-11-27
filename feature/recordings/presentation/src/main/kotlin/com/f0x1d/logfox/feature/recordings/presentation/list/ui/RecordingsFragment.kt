@@ -53,14 +53,14 @@ internal class RecordingsFragment : BaseComposeFragment() {
                 onRecordingClick = { viewModel.send(RecordingsCommand.OpenRecordingDetails(it.recordingId)) },
                 onRecordingDeleteClick = {
                     showAreYouSureDeleteDialog { context ->
-                        context.currentFragment<RecordingsFragment>()?.submit(RecordingsCommand.Delete(it.recordingId))
+                        context.currentFragment<RecordingsFragment>()?.viewModel?.send(RecordingsCommand.Delete(it.recordingId))
                     }
                 },
                 onStartStopClick = { viewModel.send(RecordingsCommand.ToggleStartStop) },
                 onPauseResumeClick = { viewModel.send(RecordingsCommand.TogglePauseResume) },
                 onClearClick = {
                     showAreYouSureClearDialog { context ->
-                        context.currentFragment<RecordingsFragment>()?.submit(RecordingsCommand.ClearRecordings)
+                        context.currentFragment<RecordingsFragment>()?.viewModel?.send(RecordingsCommand.ClearRecordings)
                     }
                 },
                 onSaveAllClick = { viewModel.send(RecordingsCommand.SaveAll) },

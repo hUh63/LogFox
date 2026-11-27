@@ -12,6 +12,9 @@ import javax.inject.Qualifier
 @InstallIn(ViewModelComponent::class)
 object RecordingViewModelModule {
 
+    // A missing deep-link argument must not crash: an unknown id means "no recording"
+    private const val INVALID_RECORDING_ID = -1L
+
     @Provides
     @ViewModelScoped
     @RecordingId
