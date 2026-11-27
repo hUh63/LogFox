@@ -2,6 +2,7 @@ package com.f0x1d.logfox.feature.crashes.presentation.list
 
 import android.content.Context
 import com.f0x1d.logfox.core.tea.BaseStoreViewModel
+import com.f0x1d.logfox.core.tea.PersistedSideEffect
 import com.f0x1d.logfox.feature.apps.picker.api.AppsPickerResultHandler
 import com.f0x1d.logfox.feature.apps.picker.api.InstalledApp
 import com.f0x1d.logfox.feature.crashes.api.domain.GetAllDisabledAppsFlowUseCase
@@ -48,6 +49,14 @@ internal class CrashesViewModel @Inject constructor(
     override fun onAppChecked(app: InstalledApp, checked: Boolean) {
         send(CrashesCommand.CheckAppDisabled(app.packageName, checked))
     }
+
+    override fun restorePersistedSideEffect(persisted: PersistedSideEffect): CrashesSideEffect? =
+        when (persisted.key) {
+            "navigate_to_crash_details" ->
+                persisted.args["crashId"]?.toLongOrNull()?.let(CrashesSideEffect::NavigateToCrashDetails)
+            else -> null
+        }
+
 
     override fun onAppSelected(app: InstalledApp): Boolean {
         send(CrashesCommand.CheckAppDisabled(app.packageName))

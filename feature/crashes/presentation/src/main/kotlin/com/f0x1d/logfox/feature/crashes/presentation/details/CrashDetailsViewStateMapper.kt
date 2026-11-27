@@ -14,5 +14,6 @@ internal class CrashDetailsViewStateMapper @Inject constructor() : ViewStateMapp
         mappingAvailable = state.mappingAvailable,
         searchQuery = state.searchQuery,
         searchMatchRanges = state.searchMatchRanges,
+        loaded = state.loaded,
     )
 }

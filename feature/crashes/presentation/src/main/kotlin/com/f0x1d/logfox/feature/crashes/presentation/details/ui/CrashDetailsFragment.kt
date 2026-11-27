@@ -24,6 +24,7 @@ import com.f0x1d.logfox.core.context.shareIntent
 import com.f0x1d.logfox.core.context.viewTextFile
 import com.f0x1d.logfox.core.copy.copyText
 import com.f0x1d.logfox.core.tea.BaseStoreFragment
+import com.f0x1d.logfox.core.ui.base.ext.snackbar
 import com.f0x1d.logfox.core.ui.dialog.currentFragment
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDeleteDialog
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDialog
@@ -183,6 +184,16 @@ internal class CrashDetailsFragment :
         }
     }
 
+    private var crashMissingHandled = false
+
+    private fun closeBecauseCrashIsMissing() {
+        if (!isAdded) return
+
+        // Shown on the activity: this fragment is popped right away
+        activity?.findViewById<View>(android.R.id.content)?.snackbar(Strings.crash_deleted)
+        runCatching { findNavController().popBackStack() }
+    }
+
     override fun render(state: CrashDetailsViewState) {
         binding.toolbar.menu.findItem(R.id.notifications_item).isVisible =
             notificationsChannelsAvailable && state.useSeparateNotificationsChannelsForCrashes
@@ -206,6 +217,13 @@ internal class CrashDetailsFragment :
         binding.logTextScrollable.textSize = textSize
 
         state.crash?.let { binding.setupFor(it, state.crashLog) }
+
+        // Restored navigation, a notification tap after cleanup or a deletion from another
+        // screen can point at a crash that is gone; an empty details screen looks broken
+        if (state.loaded && state.crash == null && !crashMissingHandled) {
+            crashMissingHandled = true
+            binding.root.post { closeBecauseCrashIsMissing() }
+        }
 
         binding.toolbar.menu.findItem(R.id.blacklist_item).apply {
             if (state.blacklisted == null) {
@@ -311,8 +329,18 @@ internal class CrashDetailsFragment :
             }
 
             is CrashDetailsSideEffect.ExportFailed -> {
-                // Without this the export silently "succeeded" even when nothing was written
-                snackbar(Strings.cannot_open_file)
+                // Without this the export silently "succeeded" even when nothing was written.
+                // The handler passes the actual exception message, so show it: "cannot open
+                // file" alone gave the user no idea what to do next
+                val message = sideEffect.message?.takeIf { it.isNotBlank() }
+
+                snackbar(
+                    if (message == null) {
+                        getString(Strings.cannot_open_file)
+                    } else {
+                        "${getString(Strings.cannot_open_file)}: $message"
+                    },
+                )
             }
 
             is CrashDetailsSideEffect.ViewLogDump -> {

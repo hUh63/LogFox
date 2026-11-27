@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationChannelCompat
-import androidx.core.app.NotificationChannelGroupCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.os.bundleOf
@@ -20,7 +19,6 @@ import com.f0x1d.logfox.feature.crashes.api.data.notificationChannelId
 import com.f0x1d.logfox.feature.crashes.api.model.AppCrash
 import com.f0x1d.logfox.feature.navigation.api.Directions
 import com.f0x1d.logfox.feature.navigation.api.NavGraphs
-import com.f0x1d.logfox.feature.notifications.api.CRASHES_CHANNEL_GROUP_ID
 import com.f0x1d.logfox.feature.preferences.api.data.CrashesSettingsRepository
 import com.f0x1d.logfox.feature.strings.Strings
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -92,14 +90,10 @@ constructor(
     private fun createNotificationChannelFor(appCrash: AppCrash) {
         if (crashesSettingsRepository.useSeparateNotificationsChannelsForCrashes().value) {
             val crashTypeName = appCrash.crashType.readableName
-            val groupId = "${CRASHES_CHANNEL_GROUP_ID}_$crashTypeName"
 
-            val crashesGroup =
-                NotificationChannelGroupCompat
-                    .Builder(groupId)
-                    .setName(context.getString(Strings.type_crashes, crashTypeName))
-                    .build()
-
+            // Channels are created flat on purpose: a group per crash type added nothing
+            // (the title says "App crashed") but every deleted group leaves its own record
+            // in the system notification settings, which the app can never clear
             val appCrashesChannel =
                 NotificationChannelCompat
                     .Builder(
@@ -108,11 +102,9 @@ constructor(
                     ).setName(context.getString(Strings.type_crashes, crashTypeName))
                     .setLightsEnabled(true)
                     .setVibrationEnabled(true)
-                    .setGroup(groupId)
                     .build()
 
             context.notificationManagerCompat.apply {
-                createNotificationChannelGroupsCompat(listOf(crashesGroup))
                 createNotificationChannelsCompat(listOf(appCrashesChannel))
             }
         } else {

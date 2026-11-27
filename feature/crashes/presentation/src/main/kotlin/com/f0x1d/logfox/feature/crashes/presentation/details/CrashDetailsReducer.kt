@@ -18,6 +18,15 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
             crashLog = command.crashLog,
             originalCrashLog = command.crashLog,
             searchMatchRanges = emptyList(),
+            loaded = true,
+        ).noSideEffects()
+
+        is CrashDetailsCommand.CrashNotFound -> state.copy(
+            crash = null,
+            crashLog = null,
+            originalCrashLog = null,
+            searchMatchRanges = emptyList(),
+            loaded = true,
         ).noSideEffects()
 
         is CrashDetailsCommand.ImportMappingClicked -> state.withSideEffects(

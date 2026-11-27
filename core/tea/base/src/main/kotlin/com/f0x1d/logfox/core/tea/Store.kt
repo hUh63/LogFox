@@ -23,6 +23,8 @@ class Store<State, Command, SideEffect>(
     private val effectHandlers: List<EffectHandler<SideEffect, Command>>,
     private val scope: CoroutineScope,
     private val onError: (Throwable) -> Unit = { it.printStackTrace() },
+    private val persistence: SideEffectPersistence? = null,
+    private val restorePersisted: ((PersistedSideEffect) -> SideEffect?)? = null,
 ) {
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<State> = _state.asStateFlow()
@@ -40,12 +42,54 @@ class Store<State, Command, SideEffect>(
     private val uiWakeUp = Channel<Unit>(Channel.UNLIMITED)
     private var activeCollectors = 0
 
+    // Mirrors the reliable effects that implement PersistableSideEffect. Written on every
+    // change so a process death while the view is stopped cannot lose the result the user is
+    // waiting for. Cleared when nobody listens for too long (see MAX_PERSISTED_AGE_MS).
+    private val persisted = ArrayList<PersistedSideEffect>()
+    private var persistedRestored = false
+
+    init {
+        runCatching {
+            val now = System.currentTimeMillis()
+
+            persistence?.loadAll()
+                ?.filter { now - it.savedAt <= MAX_PERSISTED_AGE_MS }
+                ?.takeLast(MAX_PERSISTED_EFFECTS)
+                ?.let { persisted.addAll(it) }
+        }.onFailure(onError)
+
+        persistLocked()
+    }
+
     val sideEffects: Flow<SideEffect> = flow {
         synchronized(uiLock) {
             activeCollectors++
 
             // Anything left by a previous subscription is stale for the volatile kind
             pendingEffects.removeAll { !it.reliable }
+
+            // Restored once per process, after the screen is actually on screen: the effect
+            // handlers of this ViewModel are alive by then, and the navigation controller is
+            // ready to act on a navigation effect.
+            if (!persistedRestored) {
+                persistedRestored = true
+
+                val restored = persisted.mapNotNull { item ->
+                    val effect = runCatching { restorePersisted?.invoke(item) }.getOrNull()
+
+                    // Items this screen cannot rebuild (older version, removed feature) are
+                    // dropped instead of being kept around until the TTL expires
+                    if (effect == null) null else item to Envelope(effect, reliable = true)
+                }
+
+                persisted.clear()
+                restored.forEach { (item, envelope) ->
+                    persisted.add(item)
+                    pendingEffects.addLast(envelope)
+                }
+
+                persistLocked()
+            }
         }
 
         wakeUpCollectors()
@@ -61,6 +105,8 @@ class Store<State, Command, SideEffect>(
 
                     continue
                 }
+
+                forgetPersisted(envelope.effect)
 
                 emit(envelope.effect)
             }
@@ -152,9 +198,45 @@ class Store<State, Command, SideEffect>(
             }
 
             pendingEffects.addLast(Envelope(sideEffect, reliable))
+
+            if (reliable && sideEffect is PersistableSideEffect && persistence != null) {
+                val item = PersistedSideEffect(
+                    key = sideEffect.persistedKey,
+                    args = sideEffect.persistedArgs,
+                    savedAt = System.currentTimeMillis(),
+                )
+
+                if (item.key.isNotEmpty()) {
+                    persisted.removeAll { it.key == item.key }
+                    persisted.add(item)
+
+                    while (persisted.size > MAX_PERSISTED_EFFECTS) {
+                        persisted.removeAt(0)
+                    }
+
+                    persistLocked()
+                }
+            }
         }
 
         wakeUpCollectors()
+    }
+
+    private fun forgetPersisted(effect: SideEffect) {
+        if (persistence == null) return
+        if (effect !is PersistableSideEffect) return
+
+        synchronized(uiLock) {
+            if (persisted.removeAll { it.key == effect.persistedKey }) {
+                persistLocked()
+            }
+        }
+    }
+
+    private fun persistLocked() {
+        val storage = persistence ?: return
+
+        runCatching { storage.replaceAll(persisted.toList()) }.onFailure(onError)
     }
 
     private fun wakeUpCollectors() {
@@ -174,5 +256,7 @@ class Store<State, Command, SideEffect>(
 
     private companion object {
         const val MAX_PENDING_EFFECTS = 128
+        const val MAX_PERSISTED_EFFECTS = 8
+        const val MAX_PERSISTED_AGE_MS = 7L * 24 * 60 * 60 * 1000
     }
 }

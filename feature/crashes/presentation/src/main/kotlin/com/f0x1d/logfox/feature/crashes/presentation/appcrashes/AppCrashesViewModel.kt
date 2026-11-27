@@ -1,6 +1,7 @@
 package com.f0x1d.logfox.feature.crashes.presentation.appcrashes
 
 import com.f0x1d.logfox.core.tea.BaseStoreViewModel
+import com.f0x1d.logfox.core.tea.PersistedSideEffect
 import com.f0x1d.logfox.feature.crashes.presentation.appcrashes.di.AppName
 import com.f0x1d.logfox.feature.crashes.presentation.appcrashes.di.PackageName
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,3 +25,11 @@ internal class AppCrashesViewModel @Inject constructor(
     viewStateMapper = viewStateMapper,
     initialSideEffects = listOf(AppCrashesSideEffect.LoadCrashes),
 )
+    override fun restorePersistedSideEffect(persisted: PersistedSideEffect): AppCrashesSideEffect? =
+        when (persisted.key) {
+            "navigate_to_crash_details" ->
+                persisted.args["crashId"]?.toLongOrNull()?.let(AppCrashesSideEffect::NavigateToCrashDetails)
+            else -> null
+        }
+
+

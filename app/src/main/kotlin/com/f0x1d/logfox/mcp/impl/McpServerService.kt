@@ -79,6 +79,13 @@ class McpServerService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
+        // startForegroundService() (Application.onCreate, the settings toggle) must be
+        // followed by startForeground() within 5 seconds on EVERY start - also when the
+        // service instance already exists and onCreate is not called again. Otherwise the
+        // process is killed with ForegroundServiceDidNotStartInTimeException.
+        runCatching { startForeground(NOTIFICATION_ID, notification()) }
+            .onFailure { Timber.w(it, "[MCP] Failed to post the foreground notification") }
+
         when (intent?.action) {
             ACTION_STOP_SERVER -> {
                 Timber.i("[MCP] Received stop server action, calling stopSelf()")

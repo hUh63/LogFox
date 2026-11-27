@@ -6,6 +6,9 @@ import com.f0x1d.logfox.feature.crashes.api.model.AppCrash
 internal sealed interface CrashDetailsCommand {
     data class CrashLoaded(val crash: AppCrash, val crashLog: String?) : CrashDetailsCommand
 
+    /** The crash was deleted while the screen (or a restored navigation) pointed at it. */
+    data object CrashNotFound : CrashDetailsCommand
+
     data class BlacklistStatusLoaded(val blacklisted: Boolean?) : CrashDetailsCommand
 
     data class PreferencesUpdated(

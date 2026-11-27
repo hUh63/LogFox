@@ -1,6 +1,7 @@
 package com.f0x1d.logfox.feature.crashes.presentation.details
 
 import com.f0x1d.logfox.core.tea.BaseStoreViewModel
+import com.f0x1d.logfox.core.tea.PersistedSideEffect
 import com.f0x1d.logfox.feature.preferences.api.domain.crashes.GetUseSeparateNotificationsChannelsForCrashesUseCase
 import com.f0x1d.logfox.feature.preferences.api.domain.crashes.GetWrapCrashLogLinesUseCase
 import com.f0x1d.logfox.feature.crashes.api.domain.IsMappingAvailableUseCase
@@ -39,3 +40,11 @@ internal class CrashDetailsViewModel @Inject constructor(
         CrashDetailsSideEffect.ObservePreferences,
     ),
 )
+    override fun restorePersistedSideEffect(persisted: PersistedSideEffect): CrashDetailsSideEffect? =
+        when (persisted.key) {
+            "export_failed" -> CrashDetailsSideEffect.ExportFailed(persisted.args["message"])
+            "log_dump_unavailable" -> CrashDetailsSideEffect.LogDumpUnavailable
+            else -> null
+        }
+
+

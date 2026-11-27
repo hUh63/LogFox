@@ -1,5 +1,6 @@
 package com.f0x1d.logfox.feature.crashes.presentation.details
 
+import com.f0x1d.logfox.core.tea.PersistableSideEffect
 import com.f0x1d.logfox.core.tea.ReliableSideEffect
 import android.net.Uri
 import com.f0x1d.logfox.feature.crashes.api.model.AppCrash
@@ -51,7 +52,15 @@ internal sealed interface CrashDetailsSideEffect {
     data object Close : CrashDetailsSideEffect, ReliableSideEffect
     data class LaunchFileExportPicker(val filename: String) : CrashDetailsSideEffect, ReliableSideEffect
     data class LaunchZipExportPicker(val filename: String) : CrashDetailsSideEffect, ReliableSideEffect
-    data class ExportFailed(val message: String?) : CrashDetailsSideEffect, ReliableSideEffect
+    data class ExportFailed(val message: String?) : CrashDetailsSideEffect, PersistableSideEffect {
+        override val persistedKey get() = "export_failed"
+
+        // The screen may be gone for hours: without this the user never learns why the
+        // export they started before leaving failed
+        override val persistedArgs get() = buildMap { message?.let { put("message", it) } }
+    }
     data class ViewLogDump(val file: File) : CrashDetailsSideEffect, ReliableSideEffect
-    data object LogDumpUnavailable : CrashDetailsSideEffect, ReliableSideEffect
+    data object LogDumpUnavailable : CrashDetailsSideEffect, PersistableSideEffect {
+        override val persistedKey get() = "log_dump_unavailable"
+    }
 }

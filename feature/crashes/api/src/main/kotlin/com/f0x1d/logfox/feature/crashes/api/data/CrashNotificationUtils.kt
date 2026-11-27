@@ -2,6 +2,7 @@ package com.f0x1d.logfox.feature.crashes.api.data
 
 import android.app.NotificationManager
 import android.content.Context
+import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.getSystemService
@@ -21,13 +22,22 @@ private val CURRENT_CRASH_CHANNEL_IDS: Set<String> = buildSet {
 }
 
 /**
- * Removes crash channels created by older builds (one channel per type *and* package), their
- * groups and their leftover notifications.
+ * Removes everything older builds left in the system notification settings.
  *
- * Android does allow deleting a channel the app created; it only keeps a "deleted channels"
- * counter that the app cannot clear. Deleting here is therefore the closest thing to a clean
- * state: nothing from the old naming scheme stays visible, and no notification points at a
- * channel that will never be posted to again.
+ * Older builds created one channel *per package* and nested them into a channel group per
+ * crash type. Both are gone now (channels are flat, one per crash type), and this cleans up
+ * whatever is still installed:
+ *
+ * 1. leftover notifications are cancelled (older builds tagged them with the bare package name,
+ *    and deleting a channel that still shows notifications can strand them),
+ * 2. the live channels are re-created **outside** any group, so the group deletion below
+ *    cannot take them down,
+ * 3. legacy per-package channels are deleted,
+ * 4. every crash channel group is deleted.
+ *
+ * Android keeps a "deleted channels" counter that only the system and a full data wipe can
+ * clear — no app-facing API touches it. Not creating the groups in the first place is
+ * therefore the only way to keep that list from growing.
  */
 fun Context.cleanupLegacyCrashChannels() {
     val manager = NotificationManagerCompat.from(this)
@@ -38,11 +48,31 @@ fun Context.cleanupLegacyCrashChannels() {
         getSystemService<NotificationManager>()?.activeNotifications?.forEach { notification ->
             val channelId = NotificationCompat.getChannelId(notification.notification) ?: return@forEach
 
+            // Only legacy ones: a notification on a live channel is a crash the user has
+            // not seen yet and must not be cancelled just because the app was opened
             if (isLegacyCrashChannel(channelId)) {
                 manager.cancel(notification.tag, notification.id)
             }
         }
     }.onFailure { it.printStackTrace() }
+
+    // Deleting a group deletes the channels inside it, so move the current channels out first
+    manager.notificationChannels
+        .filter { it.id in CURRENT_CRASH_CHANNEL_IDS && it.group != null }
+        .forEach { channel ->
+            runCatching {
+                manager.createNotificationChannel(
+                    NotificationChannelCompat
+                        .Builder(channel.id, channel.importance)
+                        .setName(channel.name)
+                        .setDescription(channel.description?.toString() ?: "")
+                        .setShowBadge(channel.canShowBadge())
+                        .setLightsEnabled(channel.shouldShowLights())
+                        .setVibrationEnabled(channel.shouldVibrate())
+                        .build(),
+                )
+            }.onFailure { it.printStackTrace() }
+        }
 
     manager.notificationChannels.forEach { channel ->
         val id = channel.id
@@ -55,7 +85,7 @@ fun Context.cleanupLegacyCrashChannels() {
     manager.notificationChannelGroups.forEach { group ->
         val id = group.id
 
-        if (isLegacyCrashChannel(id)) {
+        if (id == CRASHES_CHANNEL_GROUP_ID || id.startsWith("${CRASHES_CHANNEL_GROUP_ID}_")) {
             manager.deleteNotificationChannelGroup(id)
         }
     }

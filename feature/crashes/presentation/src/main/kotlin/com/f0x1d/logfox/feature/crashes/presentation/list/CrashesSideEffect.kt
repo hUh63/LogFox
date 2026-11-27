@@ -1,5 +1,6 @@
 package com.f0x1d.logfox.feature.crashes.presentation.list
 
+import com.f0x1d.logfox.core.tea.PersistableSideEffect
 import com.f0x1d.logfox.core.tea.ReliableSideEffect
 import com.f0x1d.logfox.feature.preferences.api.CrashesSort
 
@@ -20,7 +21,12 @@ internal sealed interface CrashesSideEffect {
     data class CheckAppDisabled(val packageName: String, val disabled: Boolean?) : CrashesSideEffect
 
     // UI side effects - handled by Fragment
-    data class NavigateToCrashDetails(val crashId: Long) : CrashesSideEffect, ReliableSideEffect
+    data class NavigateToCrashDetails(val crashId: Long) : CrashesSideEffect, PersistableSideEffect {
+        override val persistedKey get() = "navigate_to_crash_details"
+
+        // Tapping a crash and immediately leaving must not lose the destination
+        override val persistedArgs get() = mapOf("crashId" to crashId.toString())
+    }
     data class NavigateToAppCrashes(val packageName: String, val appName: String?) : CrashesSideEffect, ReliableSideEffect
     data object NavigateToBlacklist : CrashesSideEffect, ReliableSideEffect
 }

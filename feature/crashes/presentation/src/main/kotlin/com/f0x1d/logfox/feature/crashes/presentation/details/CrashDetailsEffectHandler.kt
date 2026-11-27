@@ -51,7 +51,13 @@ internal class CrashDetailsEffectHandler @Inject constructor(
         when (effect) {
             is CrashDetailsSideEffect.LoadCrash -> {
                 getCrashAndLogByIdFlowUseCase(crashId).collect { value ->
-                    value?.let { (crash, crashLog) ->
+                    // A null emission means the crash was deleted (blacklisted, cleaned up,
+                    // removed from the list). Ignoring it left the screen showing a crash
+                    // that no longer exists
+                    if (value == null) {
+                        onCommand(CrashDetailsCommand.CrashNotFound)
+                    } else {
+                        val (crash, crashLog) = value
                         onCommand(CrashDetailsCommand.CrashLoaded(crash, crashLog))
                     }
                 }

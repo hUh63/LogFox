@@ -43,6 +43,21 @@ internal class CrashExportRepositoryImpl @Inject constructor(
                 appendLine()
             }
             appCrash.logFile?.let { append(formatLogFileContent(it)) }
+
+            // The crash log holds the exception lines only; the dump holds the whole logcat
+            // buffer around the crash. Exporting "the crash to a file" without it gave the
+            // user a file that could not explain why the app died.
+            appCrash.logDumpFile?.let { dump ->
+                val dumpContent = formatLogFileContent(dump)
+
+                if (dumpContent.isNotBlank()) {
+                    if (isNotEmpty()) appendLine()
+                    appendLine()
+                    appendLine("========== FULL LOG DUMP (logcat buffer around the crash) ==========")
+                    appendLine()
+                    append(dumpContent)
+                }
+            }
         }
 
         if (content.isBlank()) error("Nothing to export for crash $crashId")

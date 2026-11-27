@@ -11,6 +11,8 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import com.f0x1d.logfox.core.context.notificationManagerCompat
 import com.f0x1d.logfox.core.logging.TimberFileTree
+import com.f0x1d.logfox.core.tea.SideEffectPersistenceProvider
+import com.f0x1d.logfox.data.SharedPreferencesSideEffectPersistence
 import com.f0x1d.logfox.feature.crashes.api.data.cleanupLegacyCrashChannels
 import com.f0x1d.logfox.feature.notifications.api.LOGGING_STATUS_CHANNEL_ID
 import com.f0x1d.logfox.feature.notifications.api.MCP_SERVER_CHANNEL_ID
@@ -38,6 +40,12 @@ class LogFoxApp : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Reliable side effects (a failed export, "go to this crash") must outlive a process
+        // death: the TEA module cannot touch a Context, so the application installs the store
+        SideEffectPersistenceProvider.install { namespace ->
+            SharedPreferencesSideEffectPersistence(this, namespace)
+        }
 
         // LOGGING_ENABLED is a compile-time false, so nothing was ever planted: every
         // Timber call in the terminal/Shizuku/MCP code was a no-op and runtime failures were

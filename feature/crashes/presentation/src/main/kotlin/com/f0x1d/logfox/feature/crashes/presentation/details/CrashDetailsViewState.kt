@@ -12,4 +12,5 @@ internal data class CrashDetailsViewState(
     val mappingAvailable: Boolean,
     val searchQuery: String,
     val searchMatchRanges: List<IntRange>,
+    val loaded: Boolean,
 )
