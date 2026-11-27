@@ -273,10 +273,8 @@ class MainActivity :
     }
 
     override fun onDestroy() {
-        // The permission dialog is a plain AlertDialog, so it is not restored by the system:
-        // dismiss it here to avoid a leaked window (and a stale dialog under the new one)
-        runCatching { notificationDialog?.dismiss() }
-        notificationDialog = null
+        // The permission dialog is a DialogFragment now: the FragmentManager owns it and
+        // dismisses it with the activity, so nothing manual is needed here
 
         super.onDestroy()
         navController.removeOnDestinationChangedListener(this)
