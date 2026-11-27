@@ -9,6 +9,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewbinding.ViewBinding
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
@@ -84,8 +85,11 @@ abstract class BaseStoreFragment<
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch { viewModel.state.collect { state -> render(state) } }
-                launch { viewModel.sideEffects.collect { effect -> handleSideEffect(effect) } }
+                // One throwing render/handler used to cancel these collectors, and the
+                // screen silently stopped updating (or stopped reacting to every action)
+                // for the rest of its lifetime
+                launch { viewModel.state.collect { state -> guard { render(state) } } }
+                launch { viewModel.sideEffects.collect { effect -> guard { handleSideEffect(effect) } } }
             }
         }
     }
@@ -100,5 +104,24 @@ abstract class BaseStoreFragment<
      */
     protected fun send(command: Command) {
         viewModel.send(command)
+    }
+
+    /**
+     * Dialog callbacks outlive the fragment instance (a rotation re-creates it), so they
+     * resolve the CURRENT instance through the context and submit through this method.
+     * Calling send() on the captured old instance throws: it is already detached.
+     */
+    fun submit(command: Command) {
+        viewModel.send(command)
+    }
+
+    private inline fun guard(block: () -> Unit) {
+        try {
+            block()
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+
+            throwable.printStackTrace()
+        }
     }
 }

@@ -21,8 +21,10 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import com.f0x1d.logfox.core.compat.notificationsChannelsAvailable
 import com.f0x1d.logfox.core.context.shareIntent
+import com.f0x1d.logfox.core.context.viewTextFile
 import com.f0x1d.logfox.core.copy.copyText
 import com.f0x1d.logfox.core.tea.BaseStoreFragment
+import com.f0x1d.logfox.core.ui.dialog.currentFragment
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDeleteDialog
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDialog
 import com.f0x1d.logfox.core.ui.glide.loadIcon
@@ -40,7 +42,7 @@ import com.f0x1d.logfox.feature.crashes.presentation.details.CrashDetailsState
 import com.f0x1d.logfox.feature.crashes.presentation.details.CrashDetailsViewModel
 import com.f0x1d.logfox.feature.crashes.presentation.details.CrashDetailsViewState
 import com.f0x1d.logfox.feature.strings.Strings
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.f0x1d.logfox.core.ui.dialog.showCallbackDialog
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.insetter.applyInsetter
@@ -132,6 +134,9 @@ internal class CrashDetailsFragment :
             setClickListenerOn(R.id.delete_item) {
                 send(CrashDetailsCommand.DeleteClicked)
             }
+            setClickListenerOn(R.id.dump_item) {
+                send(CrashDetailsCommand.ViewLogDumpClicked)
+            }
         }
         searchItem.setOnActionExpandListener(
             object : MenuItem.OnActionExpandListener {
@@ -183,6 +188,9 @@ internal class CrashDetailsFragment :
             notificationsChannelsAvailable && state.useSeparateNotificationsChannelsForCrashes
 
         binding.toolbar.menu.findItem(R.id.wrap_lines_item).isChecked = state.wrapCrashLogLines
+
+        // Only crashes collected with a dump have one to open
+        binding.toolbar.menu.findItem(R.id.dump_item).isVisible = state.crash?.logDumpFile != null
         binding.toolbar.menu.findItem(R.id.clear_mapping_item).isVisible = state.mappingAvailable
 
         // Switch visibility here and not inside setupFor(): the preference is applied
@@ -256,14 +264,14 @@ internal class CrashDetailsFragment :
                 showAreYouSureDialog(
                     title = Strings.blacklist,
                     message = Strings.warning_blacklist,
-                ) {
-                    send(CrashDetailsCommand.ConfirmBlacklist)
+                ) { context ->
+                    context.currentFragment<CrashDetailsFragment>()?.submit(CrashDetailsCommand.ConfirmBlacklist)
                 }
             }
 
             is CrashDetailsSideEffect.ConfirmDelete -> {
-                showAreYouSureDeleteDialog {
-                    send(CrashDetailsCommand.ConfirmDelete)
+                showAreYouSureDeleteDialog { context ->
+                    context.currentFragment<CrashDetailsFragment>()?.submit(CrashDetailsCommand.ConfirmDelete)
                 }
             }
 
@@ -307,6 +315,14 @@ internal class CrashDetailsFragment :
                 snackbar(Strings.cannot_open_file)
             }
 
+            is CrashDetailsSideEffect.ViewLogDump -> {
+                requireContext().viewTextFile(sideEffect.file)
+            }
+
+            is CrashDetailsSideEffect.LogDumpUnavailable -> {
+                snackbar(Strings.cannot_open_file)
+            }
+
             // Business logic side effects are handled by EffectHandler
             else -> Unit
         }
@@ -335,25 +351,29 @@ internal class CrashDetailsFragment :
         toolbar.menu.findItem(R.id.search_item)
 
     private fun showReplaceDialog() {
-        val dialogBinding = DialogReplaceBinding.inflate(layoutInflater)
+        requireContext().showCallbackDialog(
+            tag = "replace_dialog",
+            configure = { context, _, builder ->
+                val dialogBinding = DialogReplaceBinding.inflate(LayoutInflater.from(context))
 
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(Strings.replace)
-            .setView(dialogBinding.root)
-            .setPositiveButton(Strings.replace) { _, _ ->
-                val find = dialogBinding.findText.text?.toString().orEmpty()
+                builder
+                    .setTitle(Strings.replace)
+                    .setView(dialogBinding.root)
+                    .setPositiveButton(Strings.replace) { _, _ ->
+                        val find = dialogBinding.findText.text?.toString().orEmpty()
 
-                if (find.isNotEmpty()) {
-                    send(
-                        CrashDetailsCommand.ApplyReplace(
-                            find = find,
-                            replaceWith = dialogBinding.replaceText.text?.toString().orEmpty(),
-                        ),
-                    )
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+                        if (find.isNotEmpty()) {
+                            context.currentFragment<CrashDetailsFragment>()?.submit(
+                                CrashDetailsCommand.ApplyReplace(
+                                    find = find,
+                                    replaceWith = dialogBinding.replaceText.text?.toString().orEmpty(),
+                                ),
+                            )
+                        }
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+            },
+        )
     }
 
     private fun snackbar(messageRes: Int) {

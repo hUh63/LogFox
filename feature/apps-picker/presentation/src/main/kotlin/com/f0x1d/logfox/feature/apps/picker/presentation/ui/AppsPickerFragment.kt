@@ -1,5 +1,7 @@
 package com.f0x1d.logfox.feature.apps.picker.presentation.ui
 
+import kotlinx.coroutines.CancellationException
+
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -86,7 +88,14 @@ class AppsPickerFragment : Fragment() {
 
         LaunchedEffect(viewModel) {
             viewModel.sideEffects.collect { sideEffect ->
-                handleSideEffect(sideEffect)
+                // A navigation failure while stopped must not cancel the only collector
+                try {
+                    handleSideEffect(sideEffect)
+                } catch (throwable: Throwable) {
+                    if (throwable is CancellationException) throw throwable
+
+                    throwable.printStackTrace()
+                }
             }
         }
 

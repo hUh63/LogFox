@@ -15,7 +15,7 @@ object AppCrashesViewModelModule {
     @Provides
     @ViewModelScoped
     @PackageName
-    fun providePackageName(savedStateHandle: SavedStateHandle) = savedStateHandle.get<String>("package_name")!!
+    fun providePackageName(savedStateHandle: SavedStateHandle) = savedStateHandle.get<String>("package_name").orEmpty()
 
     @Provides
     @ViewModelScoped

@@ -1,15 +1,17 @@
 package com.f0x1d.logfox.feature.crashes.presentation.details
 
+import com.f0x1d.logfox.core.tea.ReliableSideEffect
 import android.net.Uri
 import com.f0x1d.logfox.feature.crashes.api.model.AppCrash
+import java.io.File
 
 internal sealed interface CrashDetailsSideEffect {
     // Business logic side effects
     data object LoadCrash : CrashDetailsSideEffect
 
-    data object ShowReplace : CrashDetailsSideEffect
+    data object ShowReplace : CrashDetailsSideEffect, ReliableSideEffect
 
-    data object LaunchMappingPicker : CrashDetailsSideEffect
+    data object LaunchMappingPicker : CrashDetailsSideEffect, ReliableSideEffect
 
     data class ImportMapping(val uri: Uri) : CrashDetailsSideEffect
 
@@ -40,14 +42,16 @@ internal sealed interface CrashDetailsSideEffect {
     data class DeleteCrash(val appCrash: AppCrash) : CrashDetailsSideEffect
 
     // UI side effects
-    data class OpenAppInfo(val packageName: String) : CrashDetailsSideEffect
-    data class OpenNotificationSettings(val channelId: String) : CrashDetailsSideEffect
-    data object ConfirmBlacklist : CrashDetailsSideEffect
-    data object ConfirmDelete : CrashDetailsSideEffect
-    data class CopyText(val text: String) : CrashDetailsSideEffect
-    data class ShareCrashLog(val text: String) : CrashDetailsSideEffect
-    data object Close : CrashDetailsSideEffect
-    data class LaunchFileExportPicker(val filename: String) : CrashDetailsSideEffect
-    data class LaunchZipExportPicker(val filename: String) : CrashDetailsSideEffect
-    data class ExportFailed(val message: String?) : CrashDetailsSideEffect
+    data class OpenAppInfo(val packageName: String) : CrashDetailsSideEffect, ReliableSideEffect
+    data class OpenNotificationSettings(val channelId: String) : CrashDetailsSideEffect, ReliableSideEffect
+    data object ConfirmBlacklist : CrashDetailsSideEffect, ReliableSideEffect
+    data object ConfirmDelete : CrashDetailsSideEffect, ReliableSideEffect
+    data class CopyText(val text: String) : CrashDetailsSideEffect, ReliableSideEffect
+    data class ShareCrashLog(val text: String) : CrashDetailsSideEffect, ReliableSideEffect
+    data object Close : CrashDetailsSideEffect, ReliableSideEffect
+    data class LaunchFileExportPicker(val filename: String) : CrashDetailsSideEffect, ReliableSideEffect
+    data class LaunchZipExportPicker(val filename: String) : CrashDetailsSideEffect, ReliableSideEffect
+    data class ExportFailed(val message: String?) : CrashDetailsSideEffect, ReliableSideEffect
+    data class ViewLogDump(val file: File) : CrashDetailsSideEffect, ReliableSideEffect
+    data object LogDumpUnavailable : CrashDetailsSideEffect, ReliableSideEffect
 }

@@ -1,5 +1,6 @@
 package com.f0x1d.logfox.feature.crashes.presentation.list
 
+import com.f0x1d.logfox.core.tea.ReliableSideEffect
 import com.f0x1d.logfox.feature.preferences.api.CrashesSort
 
 internal sealed interface CrashesSideEffect {
@@ -19,7 +20,7 @@ internal sealed interface CrashesSideEffect {
     data class CheckAppDisabled(val packageName: String, val disabled: Boolean?) : CrashesSideEffect
 
     // UI side effects - handled by Fragment
-    data class NavigateToCrashDetails(val crashId: Long) : CrashesSideEffect
-    data class NavigateToAppCrashes(val packageName: String, val appName: String?) : CrashesSideEffect
-    data object NavigateToBlacklist : CrashesSideEffect
+    data class NavigateToCrashDetails(val crashId: Long) : CrashesSideEffect, ReliableSideEffect
+    data class NavigateToAppCrashes(val packageName: String, val appName: String?) : CrashesSideEffect, ReliableSideEffect
+    data object NavigateToBlacklist : CrashesSideEffect, ReliableSideEffect
 }

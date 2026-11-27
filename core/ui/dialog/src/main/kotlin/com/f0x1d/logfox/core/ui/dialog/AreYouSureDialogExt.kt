@@ -1,56 +1,57 @@
 package com.f0x1d.logfox.core.ui.dialog
 
+import android.content.Context
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
-import androidx.fragment.app.FragmentManager
 import com.f0x1d.logfox.core.ui.icons.Icons
 import com.f0x1d.logfox.feature.strings.Strings
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 fun FragmentActivity.showAreYouSureDialog(
     title: Int,
     message: Int = Strings.are_you_sure,
-    okClicked: () -> Unit,
-) = supportFragmentManager.showAreYouSureDialog(title, message, okClicked)
+    onConfirm: (Context) -> Unit,
+) = this.showAreYouSureDialogInternal(title, message, onConfirm)
 
-fun FragmentActivity.showAreYouSureDeleteDialog(okClicked: () -> Unit) = showAreYouSureDialog(
+fun FragmentActivity.showAreYouSureDeleteDialog(onConfirm: (Context) -> Unit) = showAreYouSureDialog(
     title = Strings.delete,
-    okClicked = okClicked,
+    onConfirm = onConfirm,
 )
 
-fun FragmentActivity.showAreYouSureClearDialog(okClicked: () -> Unit) = showAreYouSureDialog(
+fun FragmentActivity.showAreYouSureClearDialog(onConfirm: (Context) -> Unit) = showAreYouSureDialog(
     title = Strings.clear,
-    okClicked = okClicked,
+    onConfirm = onConfirm,
 )
 
 fun Fragment.showAreYouSureDialog(
     title: Int,
     message: Int = Strings.are_you_sure,
-    okClicked: () -> Unit,
-) = parentFragmentManager.showAreYouSureDialog(title, message, okClicked)
+    onConfirm: (Context) -> Unit,
+) = requireContext().showAreYouSureDialogInternal(title, message, onConfirm)
 
-fun Fragment.showAreYouSureDeleteDialog(okClicked: () -> Unit) = showAreYouSureDialog(
+fun Fragment.showAreYouSureDeleteDialog(onConfirm: (Context) -> Unit) = showAreYouSureDialog(
     title = Strings.delete,
-    okClicked = okClicked,
+    onConfirm = onConfirm,
 )
 
-fun Fragment.showAreYouSureClearDialog(okClicked: () -> Unit) = showAreYouSureDialog(
+fun Fragment.showAreYouSureClearDialog(onConfirm: (Context) -> Unit) = showAreYouSureDialog(
     title = Strings.clear,
-    okClicked = okClicked,
+    onConfirm = onConfirm,
 )
 
-private fun FragmentManager.showAreYouSureDialog(
+private fun Context.showAreYouSureDialogInternal(
     title: Int,
     message: Int,
-    okClicked: () -> Unit,
+    onConfirm: (Context) -> Unit,
 ) = showCallbackDialog(
     tag = "are_you_sure_${title}_${message}",
-    configure = { _, _, builder ->
+    configure = { context, _, builder ->
         builder
             .setIcon(Icons.ic_dialog_warning)
             .setTitle(title)
             .setMessage(message)
-            .setPositiveButton(Strings.yes) { _, _ -> okClicked() }
+            // The callback receives the current context so it can resolve the CURRENT
+            // fragment instance: the captured one is detached after a rotation
+            .setPositiveButton(Strings.yes) { _, _ -> onConfirm(context) }
             .setNegativeButton(Strings.no, null)
     },
 )

@@ -13,6 +13,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.f0x1d.logfox.core.context.isHorizontalOrientation
 import com.f0x1d.logfox.core.tea.BaseStoreFragment
+import com.f0x1d.logfox.core.ui.dialog.currentFragment
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureClearDialog
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDeleteDialog
 import com.f0x1d.logfox.core.ui.view.density.dpToPx
@@ -30,7 +31,7 @@ import com.f0x1d.logfox.feature.crashes.presentation.list.CrashesViewState
 import com.f0x1d.logfox.feature.navigation.api.Directions
 import com.f0x1d.logfox.feature.preferences.api.CrashesSort
 import com.f0x1d.logfox.feature.strings.Strings
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.f0x1d.logfox.core.ui.dialog.showCallbackDialog
 import com.google.android.material.divider.MaterialDividerItemDecoration
 import com.google.android.material.search.SearchView
 import dagger.hilt.android.AndroidEntryPoint
@@ -61,8 +62,8 @@ internal class CrashesFragment :
             )
         },
         delete = {
-            showAreYouSureDeleteDialog {
-                send(CrashesCommand.DeleteCrashesByPackageName(it.packageName))
+            showAreYouSureDeleteDialog { context ->
+                context.currentFragment<CrashesFragment>()?.submit(CrashesCommand.DeleteCrashesByPackageName(it.packageName))
             }
         },
     )
@@ -71,8 +72,8 @@ internal class CrashesFragment :
             send(CrashesCommand.SearchedCrashClicked(it.lastCrashId))
         },
         delete = {
-            showAreYouSureDeleteDialog {
-                send(CrashesCommand.DeleteCrash(it.lastCrashId))
+            showAreYouSureDeleteDialog { context ->
+                context.currentFragment<CrashesFragment>()?.submit(CrashesCommand.DeleteCrash(it.lastCrashId))
             }
         },
     )
@@ -108,8 +109,8 @@ internal class CrashesFragment :
                 send(CrashesCommand.OpenBlacklist)
             }
             setClickListenerOn(R.id.clear_item) {
-                showAreYouSureClearDialog {
-                    send(CrashesCommand.ClearCrashes)
+                showAreYouSureClearDialog { context ->
+                    context.currentFragment<CrashesFragment>()?.submit(CrashesCommand.ClearCrashes)
                 }
             }
         }
@@ -192,46 +193,51 @@ internal class CrashesFragment :
     }
 
     private fun showSortDialog() {
-        var selectedSortType = viewModel.state.value.currentSort
-        var sortInReversedOrder = viewModel.state.value.sortInReversedOrder
+        requireContext().showCallbackDialog(
+            tag = "crashes_sort_dialog",
+            configure = { context, _, builder ->
+                val inflater = LayoutInflater.from(context)
+                val dialogBinding = DialogSortingBinding.inflate(inflater)
+                // The spec survives a rotation while this fragment does not: resolve the
+                // current instance instead of reading state from the captured one
+                val currentState = context.currentFragment<CrashesFragment>()?.viewModel?.state?.value
 
-        val dialogBinding = DialogSortingBinding.inflate(layoutInflater)
-        CrashesSort.entries.map { type ->
-            ItemSortBinding.inflate(layoutInflater).root.apply {
-                id = View.generateViewId()
-                text = getString(type.titleRes)
-                tag = type
+                CrashesSort.entries.map { type ->
+                    ItemSortBinding.inflate(inflater).root.apply {
+                        id = View.generateViewId()
+                        text = context.getString(type.titleRes)
+                        tag = type
+                    }
+                }.forEach { button ->
+                    dialogBinding.rgSorting.apply {
+                        addView(button)
 
-                setOnCheckedChangeListener { _, isChecked ->
-                    if (isChecked) {
-                        selectedSortType = type
+                        if (button.tag == currentState?.currentSort) {
+                            check(button.id)
+                        }
                     }
                 }
-            }
-        }.forEach { button ->
-            dialogBinding.rgSorting.apply {
-                addView(button)
 
-                if (button.tag == viewModel.state.value.currentSort) {
-                    check(button.id)
-                }
-            }
-        }
+                dialogBinding.reverseSwitch.isChecked = currentState?.sortInReversedOrder ?: false
 
-        dialogBinding.reverseSwitch.apply {
-            isChecked = sortInReversedOrder
-            setOnCheckedChangeListener { _, isChecked -> sortInReversedOrder = isChecked }
-        }
+                builder
+                    .setTitle(Strings.sort)
+                    .setView(dialogBinding.root)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        // Read from the widgets: their state is restored from the saved
+                        // instance Bundle, so a rotation does not lose an unconfirmed choice
+                        val checked = dialogBinding.rgSorting
+                            .findViewById<View>(dialogBinding.rgSorting.checkedRadioButtonId)
+                            ?.tag as? CrashesSort
 
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(Strings.sort)
-            .setView(dialogBinding.root)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                send(CrashesCommand.UpdateSort(
-                    sortType = selectedSortType,
-                    sortInReversedOrder = sortInReversedOrder,
-                ))
-            }
-            .show()
+                        context.currentFragment<CrashesFragment>()?.submit(
+                            CrashesCommand.UpdateSort(
+                                sortType = checked ?: currentState?.currentSort ?: return@setPositiveButton,
+                                sortInReversedOrder = dialogBinding.reverseSwitch.isChecked,
+                            ),
+                        )
+                    }
+            },
+        )
     }
 }

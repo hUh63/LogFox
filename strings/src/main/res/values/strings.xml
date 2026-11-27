@@ -242,6 +242,7 @@
     <string name="filters_export_failed">Could not export filters</string>
     <string name="mcp_server_notification_failed">MCP server could not start on port %1$d (port may be in use)</string>
     <string name="file_too_large_to_render">File is too large, showing the beginning only</string>
+    <string name="view_log_dump">View full log dump</string>
     <string name="mcp_server_auth">Require access token</string>
     <string name="mcp_server_auth_desc">Off: any device on the same network can read and clear your logs. Restart the server after changing this.</string>
 </resources>

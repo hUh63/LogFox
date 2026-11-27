@@ -1,5 +1,6 @@
 package com.f0x1d.logfox.feature.filters.presentation.list
 
+import com.f0x1d.logfox.core.tea.ReliableSideEffect
 import android.net.Uri
 import com.f0x1d.logfox.feature.filters.api.model.UserFilter
 
@@ -13,7 +14,7 @@ internal sealed interface FiltersSideEffect {
     data object ClearAllFilters : FiltersSideEffect
 
     // UI side effects - handled by Fragment
-    data class NavigateToEditFilter(val filterId: Long) : FiltersSideEffect
-    data object NavigateToCreateFilter : FiltersSideEffect
+    data class NavigateToEditFilter(val filterId: Long) : FiltersSideEffect, ReliableSideEffect
+    data object NavigateToCreateFilter : FiltersSideEffect, ReliableSideEffect
     data class ShowMessage(val messageRes: Int) : FiltersSideEffect
 }

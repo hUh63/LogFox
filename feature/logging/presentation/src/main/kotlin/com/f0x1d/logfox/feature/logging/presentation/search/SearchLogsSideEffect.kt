@@ -1,4 +1,5 @@
 package com.f0x1d.logfox.feature.logging.presentation.search
+import com.f0x1d.logfox.core.tea.ReliableSideEffect
 
 internal sealed interface SearchLogsSideEffect {
     // Business logic side effects - handled by EffectHandler
@@ -11,5 +12,5 @@ internal sealed interface SearchLogsSideEffect {
     data class SaveCaseSensitive(val caseSensitive: Boolean) : SearchLogsSideEffect
 
     // UI side effects - handled by Fragment
-    data object Dismiss : SearchLogsSideEffect
+    data object Dismiss : SearchLogsSideEffect, ReliableSideEffect
 }

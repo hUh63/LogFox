@@ -11,6 +11,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.fragment.findNavController
 import com.f0x1d.logfox.core.ui.compose.BaseComposeFragment
+import com.f0x1d.logfox.core.ui.dialog.currentFragment
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureClearDialog
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDeleteDialog
 import com.f0x1d.logfox.feature.navigation.api.Directions
@@ -51,15 +52,15 @@ internal class RecordingsFragment : BaseComposeFragment() {
             RecordingsScreenListener(
                 onRecordingClick = { viewModel.send(RecordingsCommand.OpenRecordingDetails(it.recordingId)) },
                 onRecordingDeleteClick = {
-                    showAreYouSureDeleteDialog {
-                        viewModel.send(RecordingsCommand.Delete(it.recordingId))
+                    showAreYouSureDeleteDialog { context ->
+                        context.currentFragment<RecordingsFragment>()?.submit(RecordingsCommand.Delete(it.recordingId))
                     }
                 },
                 onStartStopClick = { viewModel.send(RecordingsCommand.ToggleStartStop) },
                 onPauseResumeClick = { viewModel.send(RecordingsCommand.TogglePauseResume) },
                 onClearClick = {
-                    showAreYouSureClearDialog {
-                        viewModel.send(RecordingsCommand.ClearRecordings)
+                    showAreYouSureClearDialog { context ->
+                        context.currentFragment<RecordingsFragment>()?.submit(RecordingsCommand.ClearRecordings)
                     }
                 },
                 onSaveAllClick = { viewModel.send(RecordingsCommand.SaveAll) },

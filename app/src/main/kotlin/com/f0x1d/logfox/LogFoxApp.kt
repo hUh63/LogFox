@@ -11,6 +11,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import com.f0x1d.logfox.core.context.notificationManagerCompat
 import com.f0x1d.logfox.core.logging.TimberFileTree
+import com.f0x1d.logfox.feature.crashes.api.data.cleanupLegacyCrashChannels
 import com.f0x1d.logfox.feature.notifications.api.LOGGING_STATUS_CHANNEL_ID
 import com.f0x1d.logfox.feature.notifications.api.MCP_SERVER_CHANNEL_ID
 import com.f0x1d.logfox.feature.notifications.api.RECORDING_STATUS_CHANNEL_ID
@@ -55,6 +56,11 @@ class LogFoxApp : Application(), ImageLoaderFactory {
                 .putBoolean(PREF_MCP_SERVER_RUNNING, false)
                 .apply()
         }
+
+        // Older builds created one crash notification channel per (type, package). Those
+        // channels, their groups and their notifications are removed once on startup.
+        runCatching { cleanupLegacyCrashChannels() }
+            .onFailure { Timber.w(it, "Failed to clean up legacy crash channels") }
 
         AppCompatDelegate.setDefaultNightMode(uiSettingsRepository.nightTheme().value)
         DynamicColors.applyToActivitiesIfAvailable(

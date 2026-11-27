@@ -1,5 +1,6 @@
 package com.f0x1d.logfox.feature.logging.presentation.list
 
+import com.f0x1d.logfox.core.tea.ReliableSideEffect
 import android.net.Uri
 import com.f0x1d.logfox.feature.logging.api.model.LogLevel
 import com.f0x1d.logfox.feature.logging.api.model.LogLine
@@ -25,11 +26,11 @@ internal sealed interface LogsSideEffect {
     data object PrepareSaveCurrentLogs : LogsSideEffect
 
     // UI side effects - handled by Fragment
-    data object NavigateToRecordings : LogsSideEffect
+    data object NavigateToRecordings : LogsSideEffect, ReliableSideEffect
 
-    data object OpenFilters : LogsSideEffect
+    data object OpenFilters : LogsSideEffect, ReliableSideEffect
 
-    data class OpenEditFilter(val filterId: Long) : LogsSideEffect
+    data class OpenEditFilter(val filterId: Long) : LogsSideEffect, ReliableSideEffect
 
     data class OpenEditFilterFromLogLine(
         val uid: String,
@@ -39,17 +40,17 @@ internal sealed interface LogsSideEffect {
         val tag: String,
         val content: String,
         val level: LogLevel,
-    ) : LogsSideEffect
+    ) : LogsSideEffect, ReliableSideEffect
 
-    data class CopyText(val text: String) : LogsSideEffect
+    data class CopyText(val text: String) : LogsSideEffect, ReliableSideEffect
 
-    data object NavigateToSearch : LogsSideEffect
+    data object NavigateToSearch : LogsSideEffect, ReliableSideEffect
 
-    data object NavigateToExtendedCopy : LogsSideEffect
+    data object NavigateToExtendedCopy : LogsSideEffect, ReliableSideEffect
 
-    data class LaunchExportPicker(val filename: String) : LogsSideEffect
+    data class LaunchExportPicker(val filename: String) : LogsSideEffect, ReliableSideEffect
 
-    data class LaunchSaveCurrentPicker(val filename: String) : LogsSideEffect
+    data class LaunchSaveCurrentPicker(val filename: String) : LogsSideEffect, ReliableSideEffect
 
     data object ClearLogs : LogsSideEffect
 
@@ -60,7 +61,7 @@ internal sealed interface LogsSideEffect {
     data object CheckLogcatSilent : LogsSideEffect
 
     // UI side effects
-    data class LogcatSilentWarning(val property: String) : LogsSideEffect
+    data class LogcatSilentWarning(val property: String) : LogsSideEffect, ReliableSideEffect
 
-    data object ShowExportFailed : LogsSideEffect
+    data object ShowExportFailed : LogsSideEffect, ReliableSideEffect
 }

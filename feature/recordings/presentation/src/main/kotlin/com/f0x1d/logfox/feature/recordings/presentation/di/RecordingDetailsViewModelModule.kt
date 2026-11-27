@@ -15,7 +15,7 @@ object RecordingViewModelModule {
     @Provides
     @ViewModelScoped
     @RecordingId
-    fun provideRecordingId(savedStateHandle: SavedStateHandle) = savedStateHandle.get<Long>("recording_id")!!
+    fun provideRecordingId(savedStateHandle: SavedStateHandle) = savedStateHandle.get<Long>("recording_id") ?: INVALID_RECORDING_ID
 }
 
 @Qualifier

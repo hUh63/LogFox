@@ -1,6 +1,7 @@
 package com.f0x1d.logfox.feature.crashes.presentation.appcrashes
+import com.f0x1d.logfox.core.tea.ReliableSideEffect
 
-internal sealed interface AppCrashesSideEffect {
+internal sealed interface AppCrashesSideEffect : ReliableSideEffect {
     // Business logic side effects
     data object LoadCrashes : AppCrashesSideEffect
 

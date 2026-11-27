@@ -11,13 +11,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 
 class Store<State, Command, SideEffect>(
     initialState: State,
@@ -29,25 +27,51 @@ class Store<State, Command, SideEffect>(
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    // UI effects are one-shot events, so they must only be delivered while somebody is
-    // collecting. A bare Channel buffers effects while the view is STOPPED and replays them
-    // to the recreated view (duplicate navigation/toasts); without a subscriber the effect
-    // is dropped instead. On a fresh subscription we also drain anything buffered by an
-    // exiting subscriber so nothing from the previous view leaks into the new one.
-    private val _sideEffects = Channel<SideEffect>(capacity = SIDE_EFFECTS_BUFFER)
-    private val activeCollectors = AtomicInteger(0)
+    private data class Envelope<T>(val effect: T, val reliable: Boolean)
+
+    private val uiLock = Any()
+
+    // Effects are delivered at most once: an effect leaves the queue before it is emitted,
+    // so the recreated view never repeats a navigation/toast that the old view already ran.
+    // Reliable effects (ReliableSideEffect) wait in the queue until a view consumes them;
+    // volatile ones are dropped while nobody listens — that is what prevents the stale
+    // batch of one-shot events that used to be replayed after a rotation.
+    private val pendingEffects = ArrayDeque<Envelope<SideEffect>>()
+    private val uiWakeUp = Channel<Unit>(Channel.UNLIMITED)
+    private var activeCollectors = 0
+
     val sideEffects: Flow<SideEffect> = flow {
-        if (activeCollectors.incrementAndGet() == 1) {
-            while (true) {
-                val buffered = _sideEffects.tryReceive()
-                if (buffered.isFailure || buffered.getOrNull() == null) break
-            }
+        synchronized(uiLock) {
+            activeCollectors++
+
+            // Anything left by a previous subscription is stale for the volatile kind
+            pendingEffects.removeAll { !it.reliable }
         }
 
+        wakeUpCollectors()
+
         try {
-            emitAll(_sideEffects.receiveAsFlow())
+            while (true) {
+                val envelope = synchronized(uiLock) { pendingEffects.pollFirst() }
+
+                if (envelope == null) {
+                    // receive() throws when cancel() closes the channel; the flow must end
+                    // quietly instead of failing the collector
+                    if (uiWakeUp.receiveCatching().isClosed) break
+
+                    continue
+                }
+
+                emit(envelope.effect)
+            }
         } finally {
-            activeCollectors.decrementAndGet()
+            synchronized(uiLock) {
+                activeCollectors--
+
+                if (activeCollectors == 0) {
+                    pendingEffects.removeAll { !it.reliable }
+                }
+            }
         }
     }
 
@@ -78,7 +102,7 @@ class Store<State, Command, SideEffect>(
         }
 
         result.sideEffects.forEach { sideEffect ->
-            _sideEffects.trySend(sideEffect)
+            enqueueUiEffect(sideEffect)
 
             effectHandlers.forEach { handler ->
                 val jobId = UUID.randomUUID().toString()
@@ -108,15 +132,47 @@ class Store<State, Command, SideEffect>(
         }
     }
 
+    private fun enqueueUiEffect(sideEffect: SideEffect) {
+        val reliable = sideEffect is ReliableSideEffect
+
+        synchronized(uiLock) {
+            // A volatile effect with no listener is stale by definition
+            if (!reliable && activeCollectors == 0) return
+
+            if (pendingEffects.size >= MAX_PENDING_EFFECTS) {
+                // Prefer dropping a volatile effect: reliable ones carry user intent.
+                // java.util.ArrayDeque has no removeAt, so remove by identity
+                val victim = pendingEffects.firstOrNull { !it.reliable }
+
+                if (victim != null) {
+                    pendingEffects.remove(victim)
+                } else {
+                    pendingEffects.removeFirst()
+                }
+            }
+
+            pendingEffects.addLast(Envelope(sideEffect, reliable))
+        }
+
+        wakeUpCollectors()
+    }
+
+    private fun wakeUpCollectors() {
+        // One wake-up per listener: a single token would leave the others sleeping
+        val collectors = synchronized(uiLock) { activeCollectors }
+
+        repeat(collectors) { uiWakeUp.trySend(Unit) }
+    }
+
     fun cancel() {
         jobs.values.forEach { it.cancel() }
         jobs.clear()
 
-        _sideEffects.close()
+        uiWakeUp.close()
         effectHandlers.forEach { it.close() }
     }
 
     private companion object {
-        const val SIDE_EFFECTS_BUFFER = 64
+        const val MAX_PENDING_EFFECTS = 128
     }
 }

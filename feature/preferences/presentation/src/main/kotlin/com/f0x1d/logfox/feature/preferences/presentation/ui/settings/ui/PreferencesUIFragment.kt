@@ -22,7 +22,7 @@ import com.f0x1d.logfox.feature.preferences.presentation.ui.settings.Preferences
 import com.f0x1d.logfox.feature.preferences.presentation.ui.settings.PreferencesUIViewState
 import com.f0x1d.logfox.feature.strings.Strings
 import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.f0x1d.logfox.core.ui.dialog.showCallbackDialog
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.insetter.applyInsetter
 
@@ -52,11 +52,13 @@ internal class PreferencesUIFragment :
             setupAsListPreference(
                 setupDialog = { setIcon(Icons.ic_dialog_theme) },
                 items = filledThemeSettings,
-                selected = {
-                    viewModel.state.value.nightTheme
-                        .coerceAtLeast(0)
+                selected = { context ->
+                    context.currentFragment<PreferencesUIFragment>()?.viewModel?.state?.value?.nightTheme
+                        ?.coerceAtLeast(0) ?: 0
                 },
-                onSelected = { send(PreferencesUICommand.NightThemeChanged(it)) },
+                onSelected = { context, index ->
+                    context.currentFragment<PreferencesUIFragment>()?.submit(PreferencesUICommand.NightThemeChanged(index))
+                },
             )
         }
 
@@ -73,7 +75,9 @@ internal class PreferencesUIFragment :
                 setupViews = { it.textLayout.setHint(Strings.date_format) },
                 setupDialog = { setIcon(Icons.ic_dialog_date_format) },
                 get = { viewModel.state.value.dateFormat },
-                save = { send(PreferencesUICommand.DateFormatChanged(it)) },
+                save = { context, value ->
+                    context.currentFragment<PreferencesUIFragment>()?.submit(PreferencesUICommand.DateFormatChanged(value))
+                },
             )
         }
 
@@ -82,41 +86,52 @@ internal class PreferencesUIFragment :
                 setupViews = { it.textLayout.setHint(Strings.time_format) },
                 setupDialog = { setIcon(Icons.ic_dialog_time_format) },
                 get = { viewModel.state.value.timeFormat },
-                save = { send(PreferencesUICommand.TimeFormatChanged(it)) },
+                save = { context, value ->
+                    context.currentFragment<PreferencesUIFragment>()?.submit(PreferencesUICommand.TimeFormatChanged(value))
+                },
             )
         }
 
         findPreference<Preference>("pref_logs_format")?.setOnPreferenceClickListener {
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle(Strings.logs_format)
-                .setIcon(Icons.ic_dialog_list)
-                .setMultiChoiceItems(
-                    intArrayOf(
-                        Strings.date,
-                        Strings.time,
-                        Strings.uid,
-                        Strings.pid,
-                        Strings.tid,
-                        Strings.package_name,
-                        Strings.tag,
-                        Strings.content,
-                    ).fillWithStrings(requireContext()),
-                    viewModel.state.value.run {
-                        booleanArrayOf(
-                            showLogDate,
-                            showLogTime,
-                            showLogUid,
-                            showLogPid,
-                            showLogTid,
-                            showLogPackage,
-                            showLogTag,
-                            showLogContent,
-                        )
-                    },
-                ) { _, which, checked ->
-                    send(PreferencesUICommand.LogsFormatChanged(which, checked))
-                }.setPositiveButton(Strings.close, null)
-                .show()
+            requireContext().showCallbackDialog(
+                tag = "logs_format_dialog",
+                configure = { context, _, builder ->
+                    builder
+                        .setTitle(Strings.logs_format)
+                        .setIcon(Icons.ic_dialog_list)
+                        .setMultiChoiceItems(
+                            intArrayOf(
+                                Strings.date,
+                                Strings.time,
+                                Strings.uid,
+                                Strings.pid,
+                                Strings.tid,
+                                Strings.package_name,
+                                Strings.tag,
+                                Strings.content,
+                            ).fillWithStrings(context),
+                            context.currentFragment<PreferencesUIFragment>()?.viewModel?.state?.value?.run {
+                                booleanArrayOf(
+                                    showLogDate,
+                                    showLogTime,
+                                    showLogUid,
+                                    showLogPid,
+                                    showLogTid,
+                                    showLogPackage,
+                                    showLogTag,
+                                    showLogContent,
+                                )
+                            } ?: BooleanArray(8),
+                        ) { _, which, checked ->
+                            // Every toggle is stored immediately, so the restored dialog
+                            // reflects the current format after a rotation
+                            context.currentFragment<PreferencesUIFragment>()?.submit(
+                                PreferencesUICommand.LogsFormatChanged(which, checked),
+                            )
+                        }
+                        .setPositiveButton(Strings.close, null)
+                },
+            )
             true
         }
 
@@ -131,9 +146,11 @@ internal class PreferencesUIFragment :
                     viewModel.state.value.logsUpdateInterval
                         .toString()
                 },
-                save = {
-                    requireContext().catchingNotNumber {
-                        send(PreferencesUICommand.LogsUpdateIntervalChanged(it?.toLong()))
+                save = { context, value ->
+                    context.catchingNotNumber {
+                        context.currentFragment<PreferencesUIFragment>()?.submit(
+                            PreferencesUICommand.LogsUpdateIntervalChanged(value?.toLong()),
+                        )
                     }
                 },
             )
@@ -147,9 +164,11 @@ internal class PreferencesUIFragment :
                     viewModel.state.value.logsTextSize
                         .toString()
                 },
-                save = {
-                    requireContext().catchingNotNumber {
-                        send(PreferencesUICommand.LogsTextSizeChanged(it?.toInt()))
+                save = { context, value ->
+                    context.catchingNotNumber {
+                        context.currentFragment<PreferencesUIFragment>()?.submit(
+                            PreferencesUICommand.LogsTextSizeChanged(value?.toInt()),
+                        )
                     }
                 },
             )
@@ -166,9 +185,11 @@ internal class PreferencesUIFragment :
                     viewModel.state.value.logsDisplayLimit
                         .toString()
                 },
-                save = {
-                    requireContext().catchingNotNumber {
-                        send(PreferencesUICommand.LogsDisplayLimitChanged(it?.toInt()))
+                save = { context, value ->
+                    context.catchingNotNumber {
+                        context.currentFragment<PreferencesUIFragment>()?.submit(
+                            PreferencesUICommand.LogsDisplayLimitChanged(value?.toInt()),
+                        )
                     }
                 },
             )

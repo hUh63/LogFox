@@ -1,4 +1,5 @@
 package com.f0x1d.logfox.feature.recordings.presentation.list
+import com.f0x1d.logfox.core.tea.ReliableSideEffect
 
 internal sealed interface RecordingsSideEffect {
     // Business logic (handled by EffectHandler)
@@ -11,5 +12,5 @@ internal sealed interface RecordingsSideEffect {
 
     // UI (handled by Fragment)
     data class ShowSnackbar(val text: String) : RecordingsSideEffect
-    data class OpenRecording(val recordingId: Long) : RecordingsSideEffect
+    data class OpenRecording(val recordingId: Long) : RecordingsSideEffect, ReliableSideEffect
 }

@@ -31,7 +31,7 @@ env:
   # name (a `v` prefix is stripped in the Resolve version step). Without this every tag
   # release silently shipped the hard-coded default version and could not be installed
   # over the previous build.
-  VERSION_NAME: ${{ inputs.version_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '2.1.10-hUh63-1.27' }}
+  VERSION_NAME: ${{ inputs.version_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '2.1.10-hUh63-1.28' }}
   # Derived from the version name below when not passed explicitly (…-1.16 → 96). It used to
   # be a hard-coded literal, which was forgotten on every bump - the release then shipped with
   # the previous build's code and could not be installed over it

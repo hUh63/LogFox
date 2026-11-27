@@ -46,6 +46,8 @@ internal sealed interface CrashDetailsCommand {
 
     data object CopyCrashLog : CrashDetailsCommand
 
+    data object ViewLogDumpClicked : CrashDetailsCommand
+
     data object ShareCrashLog : CrashDetailsCommand
 
     data class SearchInLog(val query: String) : CrashDetailsCommand

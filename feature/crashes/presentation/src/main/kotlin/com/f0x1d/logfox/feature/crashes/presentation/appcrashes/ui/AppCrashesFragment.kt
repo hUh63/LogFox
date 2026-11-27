@@ -10,6 +10,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.f0x1d.logfox.core.tea.BaseStoreFragment
+import com.f0x1d.logfox.core.ui.dialog.currentFragment
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDeleteDialog
 import com.f0x1d.logfox.core.ui.view.density.dpToPx
 import com.f0x1d.logfox.core.ui.view.setupBackButtonForNavController
@@ -43,8 +44,8 @@ internal class AppCrashesFragment :
             send(AppCrashesCommand.CrashClicked(it.lastCrashId))
         },
         delete = {
-            showAreYouSureDeleteDialog {
-                send(AppCrashesCommand.DeleteCrash(it.lastCrashId))
+            showAreYouSureDeleteDialog { context ->
+                context.currentFragment<AppCrashesFragment>()?.submit(AppCrashesCommand.DeleteCrash(it.lastCrashId))
             }
         },
     )

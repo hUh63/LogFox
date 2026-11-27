@@ -1,8 +1,9 @@
 package com.f0x1d.logfox.feature.apps.picker.presentation
 
+import com.f0x1d.logfox.core.tea.ReliableSideEffect
 import com.f0x1d.logfox.feature.apps.picker.api.InstalledApp
 
-internal sealed interface AppsPickerSideEffect {
+internal sealed interface AppsPickerSideEffect : ReliableSideEffect {
     // Business logic side effects
     data object LoadApps : AppsPickerSideEffect
     data class FilterApps(val query: String, val apps: List<InstalledApp>) : AppsPickerSideEffect

@@ -261,8 +261,8 @@ internal class EditFilterFragment :
         initialText = viewModel.state.value.name,
         setupViews = { it.textLayout.setHint(Strings.filter_name) },
         setupDialog = { setIcon(Icons.ic_dialog_text_fields) },
-    ) { newName ->
-        send(EditFilterCommand.UpdateName(newName.orEmpty()))
+    ) { context, newName ->
+        context.currentFragment<EditFilterFragment>()?.submit(EditFilterCommand.UpdateName(newName.orEmpty()))
     }
 
     // Updates the field only when the value actually changed, via the watcher-suppressing setter so a

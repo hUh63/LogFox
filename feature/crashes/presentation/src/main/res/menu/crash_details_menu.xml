@@ -66,6 +66,11 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/dump_item"
+        android:title="@string/view_log_dump"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/delete_item"
         android:icon="@drawable/ic_delete"
         android:title="@string/delete"

@@ -345,3 +345,15 @@ Bugs found by auditing the 1.3 sources, all fixed in `v2.1.10-hUh63-1.4`:
 | A crash that failed to notify aborted collect(): the next crash's first line was consumed and lost; one failing detector blocked the others | Every step is isolated, and the final flush on logging stop settles pending crashes even inside the collection window |
 | Sharing a saved log via FileProvider had no read permission grant | Added FLAG_GRANT_READ_URI_PERMISSION |
 | Size-capped file reads could end in the middle of a UTF-8 character | Decoding stops on the last complete character |
+
+## 1.28 — reliable effects, dialog lifecycle, crash dumps, channel cleanup
+
+| Problem | Fix |
+|---------|-----|
+| Store side effects were dropped while no view listened, so a navigation/picker produced in the background never happened | Effects implementing `ReliableSideEffect` (navigation, pickers, "failed" reports, confirmations) are queued until a view consumes them; each effect is delivered at most once, so nothing is replayed |
+| Dialogs were still Activity-owned in MainActivity, CrashDetails, Crashes, Preferences | All dialogs are retained specifications stored in an Activity ViewModel; widget state (typed text, switches) is saved in the Bundle; callbacks resolve the *current* fragment via context, because the captured one is detached after rotation |
+| Render/handleSideEffect failure killed the only collector, freezing the screen forever | Both collectors are guarded; a single bad state/effect no longer disables the screen |
+| Old per-(type, package) crash notification channels stayed in the system settings forever | Deleted on startup together with their groups and leftover notifications |
+| `logDumpFile` was never written (TODO): the "full log" attachment and zip entry were always missing | The whole buffered logcat is written next to the crash log, exposed in the details menu and included in the zip export |
+| Missing deep-link arguments crashed details screens with NPE | Invalid ids fall back to "not found" instead of `!!` |
+| 16px rounding/duplicate-dialog taps could stack two dialogs | Retained dialogs are de-duplicated by tag |

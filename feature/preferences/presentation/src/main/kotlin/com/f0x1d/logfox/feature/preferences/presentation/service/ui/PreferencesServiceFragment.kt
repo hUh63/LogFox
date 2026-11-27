@@ -32,7 +32,8 @@ import com.f0x1d.logfox.feature.preferences.presentation.service.PreferencesServ
 import com.f0x1d.logfox.feature.strings.Strings
 import com.f0x1d.logfox.feature.terminals.api.base.TerminalType
 import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.f0x1d.logfox.core.ui.dialog.currentFragment
+import com.f0x1d.logfox.core.ui.dialog.showCallbackDialog
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.insetter.applyInsetter
 
@@ -243,40 +244,46 @@ internal class PreferencesServiceFragment :
         component = ComponentName(requireContext().packageName, MCP_SERVICE_CLASS)
     }
 
-    private fun showMcpPortDialog() {
-        val preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+    private fun showMcpPortDialog() = requireContext().showCallbackDialog(
+        tag = "mcp_port_dialog",
+        configure = { context, _, builder ->
+            val preferences = PreferenceManager.getDefaultSharedPreferences(context)
 
-        val editText = EditText(requireContext()).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setText(preferences.getInt(PREF_MCP_SERVER_PORT, MCP_DEFAULT_PORT).toString())
-        }
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(Strings.server_port)
-            .setView(editText)
-            .setPositiveButton(Strings.save) { _, _ ->
-                val port = editText.text.toString().toIntOrNull()
-
-                if (port == null || port < MCP_MIN_PORT || port > MCP_MAX_PORT) {
-                    requireContext().toast(Strings.invalid_port)
-
-                    return@setPositiveButton
-                }
-
-                preferences.edit().putInt(PREF_MCP_SERVER_PORT, port).apply()
-
-                findPreference<Preference>(PREF_MCP_SERVER_PORT)?.summary =
-                    getString(Strings.default_port, port.toString())
-
-                if (preferences.getBoolean(PREF_MCP_SERVER_ENABLED, true)) {
-                    restartMcpServer()
-                } else {
-                    refreshMcpPreferences()
-                }
+            val editText = EditText(context).apply {
+                inputType = InputType.TYPE_CLASS_NUMBER
+                setText(preferences.getInt(PREF_MCP_SERVER_PORT, MCP_DEFAULT_PORT).toString())
             }
-            .setNegativeButton(Strings.close, null)
-            .show()
-    }
+
+            builder
+                .setTitle(Strings.server_port)
+                .setView(editText)
+                .setPositiveButton(Strings.save) { _, _ ->
+                    val port = editText.text.toString().toIntOrNull()
+
+                    if (port == null || port < MCP_MIN_PORT || port > MCP_MAX_PORT) {
+                        context.toast(Strings.invalid_port)
+
+                        return@setPositiveButton
+                    }
+
+                    preferences.edit().putInt(PREF_MCP_SERVER_PORT, port).apply()
+
+                    // The dialog spec outlives this fragment instance across a rotation, so
+                    // resolve the current fragment instead of touching the old view tree
+                    val host = context.currentFragment<PreferencesServiceFragment>()
+
+                    host?.findPreference<Preference>(PREF_MCP_SERVER_PORT)?.summary =
+                        context.getString(Strings.default_port, port.toString())
+
+                    if (preferences.getBoolean(PREF_MCP_SERVER_ENABLED, true)) {
+                        host?.restartMcpServer()
+                    } else {
+                        host?.refreshMcpPreferences()
+                    }
+                }
+                .setNegativeButton(Strings.close, null)
+        },
+    )
 
     override fun onResume() {
         super.onResume()
@@ -312,10 +319,10 @@ internal class PreferencesServiceFragment :
             setupAsListPreference(
                 setupDialog = { setIcon(Icons.ic_dialog_terminal) },
                 items = terminalNamesArray,
-                selected = { selectedIndex },
-                onSelected = { index ->
+                selected = { _ -> selectedIndex },
+                onSelected = { context, index ->
                     val type = TerminalType.entries[index]
-                    send(PreferencesServiceCommand.TerminalSelected(type))
+                    context.currentFragment<PreferencesServiceFragment>()?.submit(PreferencesServiceCommand.TerminalSelected(type))
                 },
             )
 
@@ -326,15 +333,22 @@ internal class PreferencesServiceFragment :
     override fun handleSideEffect(sideEffect: PreferencesServiceSideEffect) {
         when (sideEffect) {
             is PreferencesServiceSideEffect.ShowTerminalRestartDialog -> {
-                MaterialAlertDialogBuilder(requireContext())
-                    .setIcon(Icons.ic_dialog_terminal)
-                    .setTitle(Strings.new_terminal_selected)
-                    .setMessage(Strings.new_terminal_selected_question)
-                    .setPositiveButton(Strings.yes) { _, _ ->
-                        send(PreferencesServiceCommand.ConfirmRestartLogging)
-                    }
-                    .setNeutralButton(Strings.no, null)
-                    .show()
+                requireContext().showCallbackDialog(
+                    tag = "terminal_restart_dialog",
+                    configure = { _, _, builder ->
+                        builder
+                            .setIcon(Icons.ic_dialog_terminal)
+                            .setTitle(Strings.new_terminal_selected)
+                            .setMessage(Strings.new_terminal_selected_question)
+                            .setPositiveButton(Strings.yes) { _, _ ->
+                                context.currentFragment<PreferencesServiceFragment>()?.submit(
+                                    PreferencesServiceCommand.ConfirmRestartLogging,
+                                )
+                            }
+                            // "No" is a negative answer, not a neutral one
+                            .setNegativeButton(Strings.no, null)
+                    },
+                )
             }
 
             is PreferencesServiceSideEffect.ShowTerminalUnavailableToast -> {
@@ -342,13 +356,17 @@ internal class PreferencesServiceFragment :
             }
 
             is PreferencesServiceSideEffect.ShowAndroid13WarningDialog -> {
-                MaterialAlertDialogBuilder(requireContext())
-                    .setIcon(Icons.ic_dialog_warning)
-                    .setTitle(Strings.warning)
-                    .setMessage(Strings.android13_start_on_boot_warning)
-                    .setCancelable(false)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
+                requireContext().showCallbackDialog(
+                    tag = "android13_boot_warning_dialog",
+                    configure = { _, _, builder ->
+                        builder
+                            .setIcon(Icons.ic_dialog_warning)
+                            .setTitle(Strings.warning)
+                            .setMessage(Strings.android13_start_on_boot_warning)
+                            .setCancelable(false)
+                            .setPositiveButton(android.R.string.ok, null)
+                    },
+                )
             }
 
             // Business logic side effects - handled by EffectHandler

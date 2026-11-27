@@ -12,6 +12,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.f0x1d.logfox.core.tea.BaseStoreFragment
+import com.f0x1d.logfox.core.ui.dialog.currentFragment
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureClearDialog
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDeleteDialog
 import com.f0x1d.logfox.core.ui.view.setClickListenerOn
@@ -46,8 +47,8 @@ internal class FiltersFragment :
             send(FiltersCommand.OpenFilter(it.id))
         },
         delete = {
-            showAreYouSureDeleteDialog {
-                send(FiltersCommand.Delete(it))
+            showAreYouSureDeleteDialog { context ->
+                context.currentFragment<FiltersFragment>()?.submit(FiltersCommand.Delete(it))
             }
         },
         checked = { userFilter, checked ->
@@ -84,8 +85,8 @@ internal class FiltersFragment :
         toolbar.setupBackButtonForNavController()
         toolbar.menu.apply {
             setClickListenerOn(R.id.clear_item) {
-                showAreYouSureClearDialog {
-                    send(FiltersCommand.ClearAll)
+                showAreYouSureClearDialog { context ->
+                    context.currentFragment<FiltersFragment>()?.submit(FiltersCommand.ClearAll)
                 }
             }
             setClickListenerOn(R.id.import_item) {

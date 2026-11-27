@@ -33,7 +33,7 @@ import com.f0x1d.logfox.presentation.MainCommand
 import com.f0x1d.logfox.presentation.MainSideEffect
 import com.f0x1d.logfox.presentation.MainViewModel
 import com.f0x1d.logfox.presentation.MainViewState
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.f0x1d.logfox.core.ui.dialog.showCallbackDialog
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -127,38 +127,36 @@ class MainActivity :
         )
     }
 
-    private var notificationDialogShown = false
-    private var notificationDialog: androidx.appcompat.app.AlertDialog? = null
-
     private fun showNotificationPermissionDialogIfNeeded(state: MainViewState) {
-        // render() runs on every state change; without this the dialog was re-created on top
-        // of itself each time. Restored too, so a rotation does not stack a second dialog
-        if (notificationDialogShown) return
+        if (hasNotificationsPermission() || state.askedNotificationsPermission) return
 
-        if (!hasNotificationsPermission() && !state.askedNotificationsPermission) {
-            notificationDialogShown = true
+        // A retained dialog: the previous Activity-owned AlertDialog was destroyed by a
+        // rotation, losing the prompt forever (its "shown" flag stayed true). The spec
+        // lives in an Activity ViewModel, so callbacks resolve on the CURRENT activity.
+        showCallbackDialog(
+            tag = "notification_permission_dialog",
+            configure = { context, _, builder ->
+                val activity = context as MainActivity
 
-            notificationDialog = MaterialAlertDialogBuilder(this@MainActivity)
-                .setIcon(Icons.ic_dialog_notification_important)
-                .setTitle(Strings.no_notification_permission)
-                .setMessage(Strings.notification_permission_is_required)
-                .setCancelable(false)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    // Flagged in the result callback instead: marking it here silenced the
-                    // dialog for good even if the system dialog never showed up
-                    requestNotificationPermissionLauncher.launch(
-                        Manifest.permission.POST_NOTIFICATIONS,
-                    )
-                }
-                .setNegativeButton(Strings.close) { _, _ ->
-                    markNotificationsPermissionAsked()
-                }
-                .setOnDismissListener {
-                    notificationDialogShown = false
-                    notificationDialog = null
-                }
-                .show()
-        }
+                builder
+                    .setIcon(Icons.ic_dialog_notification_important)
+                    .setTitle(Strings.no_notification_permission)
+                    .setMessage(Strings.notification_permission_is_required)
+                    .setCancelable(false)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        // Flagged in the result callback instead: marking it here silenced
+                        // the dialog for good even if the system dialog never showed up
+                        activity.requestNotificationPermission()
+                    }
+                    .setNegativeButton(Strings.close) { _, _ ->
+                        activity.markNotificationsPermissionAsked()
+                    }
+            },
+        )
+    }
+
+    private fun requestNotificationPermission() {
+        requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     // Marking it when the dialog was shown meant a dialog lost to a rotation (it is not a
