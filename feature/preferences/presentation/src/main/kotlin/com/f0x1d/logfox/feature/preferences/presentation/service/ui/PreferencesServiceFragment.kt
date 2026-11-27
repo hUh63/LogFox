@@ -335,7 +335,7 @@ internal class PreferencesServiceFragment :
             is PreferencesServiceSideEffect.ShowTerminalRestartDialog -> {
                 requireContext().showCallbackDialog(
                     tag = "terminal_restart_dialog",
-                    configure = { _, _, builder ->
+                    configure = { context, _, builder ->
                         builder
                             .setIcon(Icons.ic_dialog_terminal)
                             .setTitle(Strings.new_terminal_selected)

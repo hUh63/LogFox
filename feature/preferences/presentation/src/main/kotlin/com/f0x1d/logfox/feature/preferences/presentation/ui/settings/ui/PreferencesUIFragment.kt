@@ -22,6 +22,7 @@ import com.f0x1d.logfox.feature.preferences.presentation.ui.settings.Preferences
 import com.f0x1d.logfox.feature.preferences.presentation.ui.settings.PreferencesUIViewState
 import com.f0x1d.logfox.feature.strings.Strings
 import com.google.android.material.appbar.MaterialToolbar
+import com.f0x1d.logfox.core.ui.dialog.currentFragment
 import com.f0x1d.logfox.core.ui.dialog.showCallbackDialog
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.insetter.applyInsetter

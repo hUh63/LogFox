@@ -11,6 +11,7 @@ import androidx.hilt.navigation.fragment.hiltNavGraphViewModels
 import androidx.navigation.fragment.findNavController
 import com.f0x1d.logfox.core.tea.BaseStoreFragment
 import com.f0x1d.logfox.core.ui.base.ext.doAfterTextChanged
+import com.f0x1d.logfox.core.ui.dialog.currentFragment
 import com.f0x1d.logfox.core.ui.dialog.showAreYouSureDialog
 import com.f0x1d.logfox.core.ui.dialog.showEditTextDialog
 import com.f0x1d.logfox.core.ui.icons.Icons
