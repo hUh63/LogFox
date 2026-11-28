@@ -126,6 +126,7 @@
     <string name="terminal">Backend</string>
     <string name="terminal_default">Default</string>
     <string name="terminal_unavailable">Backend is unavailable</string>
+    <string name="terminal_changed">Backend changed</string>
     <string name="terminal_unavailable_falling_back">Backend is unavailable, falling back to default</string>
     <string name="new_terminal_selected">New backend selected</string>
     <string name="new_terminal_selected_question">Would you like to restart logging using it?</string>

@@ -54,6 +54,10 @@ internal class PreferencesServiceEffectHandler @Inject constructor(
             }
 
             // UI side effects - handled by Fragment
+            is PreferencesServiceSideEffect.ShowTerminalChangedToast -> {
+                Unit
+            }
+
             is PreferencesServiceSideEffect.ShowTerminalRestartDialog -> {
                 Unit
             }

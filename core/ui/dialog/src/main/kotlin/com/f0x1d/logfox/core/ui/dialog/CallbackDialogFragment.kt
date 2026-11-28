@@ -89,10 +89,34 @@ fun Context.showCallbackDialog(
         .show(activity.supportFragmentManager, tag)
 }
 
-/** Finds the current (post-rotation) instance of a fragment for dialog callbacks. */
+/**
+ * Finds the current (post-rotation) instance of a fragment for dialog callbacks.
+ *
+ * The whole fragment tree is searched, not only the activity's direct children: every screen
+ * is hosted inside a NavHostFragment, whose fragments live in its childFragmentManager. Looking
+ * only at `supportFragmentManager.fragments` therefore found just the NavHost (and the dialog
+ * itself), so all dialog callbacks - pick a backend, confirm a deletion, rename a filter -
+ * resolved to null and the tap silently did nothing.
+ */
 inline fun <reified T : androidx.fragment.app.Fragment> Context.currentFragment(): T? =
-    (this as? FragmentActivity)?.supportFragmentManager?.fragments
-        ?.firstOrNull { it is T && it.isAdded } as? T
+    (this as? FragmentActivity)?.supportFragmentManager?.findAddedFragment(T::class.java)
+
+fun <T : androidx.fragment.app.Fragment> androidx.fragment.app.FragmentManager.findAddedFragment(
+    type: Class<T>,
+): T? {
+    // toList(): the manager must not be iterated while callbacks could modify it
+    fragments.toList().forEach { fragment ->
+        if (type.isInstance(fragment) && fragment.isAdded) return type.cast(fragment)
+
+        val child = fragment.childFragmentManager
+
+        if (child.fragments.isNotEmpty()) {
+            child.findAddedFragment(type)?.let { return it }
+        }
+    }
+
+    return null
+}
 
 private const val DIALOG_VM_KEY = "logfox_dialog_host"
 private const val KEY_TEXT_PREFIX = "widget_text_"

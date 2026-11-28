@@ -10,6 +10,7 @@ internal sealed interface PreferencesServiceSideEffect {
     data object RestartLogging : PreferencesServiceSideEffect
 
     // UI side effects - handled by Fragment
+    data object ShowTerminalChangedToast : PreferencesServiceSideEffect
     data object ShowTerminalRestartDialog : PreferencesServiceSideEffect
     data object ShowTerminalUnavailableToast : PreferencesServiceSideEffect
     data object ShowAndroid13WarningDialog : PreferencesServiceSideEffect

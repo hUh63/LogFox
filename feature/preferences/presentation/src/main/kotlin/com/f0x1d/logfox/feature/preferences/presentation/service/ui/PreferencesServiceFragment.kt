@@ -310,10 +310,13 @@ internal class PreferencesServiceFragment :
     }
 
     override fun render(state: PreferencesServiceViewState) {
-        if (state.terminalNames.isEmpty()) return
-
         findPreference<Preference>("pref_selected_terminal_index")?.apply {
-            val terminalNamesArray = state.terminalNames.toTypedArray()
+            // Falling back to the raw keys instead of returning early: the names arrive with
+            // the first loaded state, and until then the item had no click listener at all,
+            // so tapping it did nothing at all
+            val terminalNamesArray = state.terminalNames
+                .ifEmpty { TerminalType.entries.map { it.key } }
+                .toTypedArray()
             val selectedIndex = TerminalType.entries.indexOf(state.selectedTerminalType)
 
             setupAsListPreference(
@@ -332,6 +335,10 @@ internal class PreferencesServiceFragment :
 
     override fun handleSideEffect(sideEffect: PreferencesServiceSideEffect) {
         when (sideEffect) {
+            is PreferencesServiceSideEffect.ShowTerminalChangedToast -> {
+                requireContext().toast(Strings.terminal_changed)
+            }
+
             is PreferencesServiceSideEffect.ShowTerminalRestartDialog -> {
                 requireContext().showCallbackDialog(
                     tag = "terminal_restart_dialog",

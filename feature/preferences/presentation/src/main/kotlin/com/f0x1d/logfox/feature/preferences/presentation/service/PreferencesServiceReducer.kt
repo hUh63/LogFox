@@ -40,6 +40,10 @@ internal class PreferencesServiceReducer @Inject constructor() : Reducer<Prefere
         is PreferencesServiceCommand.TerminalSupported -> {
             state.copy(selectedTerminalType = command.type).withSideEffects(
                 PreferencesServiceSideEffect.SaveTerminalType(command.type),
+                // Saving and restarting are two steps: without an immediate confirmation the
+                // only feedback was a dialog, and "No" (save without restarting) looked like
+                // nothing happened at all
+                PreferencesServiceSideEffect.ShowTerminalChangedToast,
                 PreferencesServiceSideEffect.ShowTerminalRestartDialog,
             )
         }
