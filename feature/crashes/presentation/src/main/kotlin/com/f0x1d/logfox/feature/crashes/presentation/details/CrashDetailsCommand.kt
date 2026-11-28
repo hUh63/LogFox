@@ -75,4 +75,6 @@ internal sealed interface CrashDetailsCommand {
 
     /** Export finished with an error; [message] is the localized failure reason. */
     data class ExportFailed(val message: String?) : CrashDetailsCommand
+
+    data object ExportSucceeded : CrashDetailsCommand
 }

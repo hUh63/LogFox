@@ -58,6 +58,10 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
             CrashDetailsSideEffect.ExportFailed(command.message),
         )
 
+        is CrashDetailsCommand.ExportSucceeded -> state.withSideEffects(
+            CrashDetailsSideEffect.ExportSucceeded,
+        )
+
         is CrashDetailsCommand.ViewLogDumpClicked -> {
             val dumpFile = state.crash?.logDumpFile
 

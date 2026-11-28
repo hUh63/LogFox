@@ -109,9 +109,11 @@ class Store<State, Command, SideEffect>(
                     continue
                 }
 
-                forgetPersisted(envelope.effect)
-
                 emit(envelope.effect)
+
+                // Only after delivery: a collector cancelled during emit() means the effect
+                // was not delivered, so it must stay persisted for the next visit
+                forgetPersisted(envelope.effect)
             }
         } finally {
             synchronized(uiLock) {

@@ -52,6 +52,8 @@ internal sealed interface CrashDetailsSideEffect {
     data object Close : CrashDetailsSideEffect, ReliableSideEffect
     data class LaunchFileExportPicker(val filename: String) : CrashDetailsSideEffect, ReliableSideEffect
     data class LaunchZipExportPicker(val filename: String) : CrashDetailsSideEffect, ReliableSideEffect
+    data object ExportSucceeded : CrashDetailsSideEffect, ReliableSideEffect
+
     data class ExportFailed(val message: String?) : CrashDetailsSideEffect, PersistableSideEffect {
         override val persistedKey get() = "export_failed"
 

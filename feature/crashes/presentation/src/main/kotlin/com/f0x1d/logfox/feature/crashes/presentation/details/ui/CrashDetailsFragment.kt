@@ -343,6 +343,10 @@ internal class CrashDetailsFragment :
                 )
             }
 
+            is CrashDetailsSideEffect.ExportSucceeded -> {
+                snackbar(Strings.file_saved)
+            }
+
             is CrashDetailsSideEffect.ViewLogDump -> {
                 requireContext().viewTextFile(sideEffect.file)
             }
