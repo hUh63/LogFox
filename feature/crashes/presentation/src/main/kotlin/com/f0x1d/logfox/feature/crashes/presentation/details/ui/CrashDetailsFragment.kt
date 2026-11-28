@@ -190,7 +190,7 @@ internal class CrashDetailsFragment :
         if (!isAdded) return
 
         // Shown on the activity: this fragment is popped right away
-        activity?.findViewById<View>(android.R.id.content)?.snackbar(Strings.crash_deleted)
+        activity?.findViewById<View>(android.R.id.content)?.snackbar(getString(Strings.crash_deleted))
         runCatching { findNavController().popBackStack() }
     }
 
@@ -334,11 +334,11 @@ internal class CrashDetailsFragment :
                 // file" alone gave the user no idea what to do next
                 val message = sideEffect.message?.takeIf { it.isNotBlank() }
 
-                snackbar(
+                requireView().snackbar(
                     if (message == null) {
                         getString(Strings.cannot_open_file)
                     } else {
-                        "${getString(Strings.cannot_open_file)}: $message"
+                        getString(Strings.cannot_open_file) + ": " + message
                     },
                 )
             }

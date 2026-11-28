@@ -24,12 +24,12 @@ internal class AppCrashesViewModel @Inject constructor(
     effectHandlers = listOf(effectHandler),
     viewStateMapper = viewStateMapper,
     initialSideEffects = listOf(AppCrashesSideEffect.LoadCrashes),
-)
+) {
+
     override fun restorePersistedSideEffect(persisted: PersistedSideEffect): AppCrashesSideEffect? =
         when (persisted.key) {
             "navigate_to_crash_details" ->
                 persisted.args["crashId"]?.toLongOrNull()?.let(AppCrashesSideEffect::NavigateToCrashDetails)
             else -> null
         }
-
-
+}

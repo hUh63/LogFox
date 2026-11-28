@@ -39,12 +39,12 @@ internal class CrashDetailsViewModel @Inject constructor(
         CrashDetailsSideEffect.LoadCrash,
         CrashDetailsSideEffect.ObservePreferences,
     ),
-)
+) {
+
     override fun restorePersistedSideEffect(persisted: PersistedSideEffect): CrashDetailsSideEffect? =
         when (persisted.key) {
             "export_failed" -> CrashDetailsSideEffect.ExportFailed(persisted.args["message"])
             "log_dump_unavailable" -> CrashDetailsSideEffect.LogDumpUnavailable
             else -> null
         }
-
-
+}

@@ -34,6 +34,17 @@ constructor(
     override fun sendErrorNotification(appCrash: AppCrash, crashLog: String?) {
         createNotificationChannelFor(appCrash)
 
+        // A full logcat buffer in the notification extras exceeds the ~1MB Binder limit, and
+        // notify() then throws: the user got NO crash notification exactly for the crashes
+        // with the biggest logs
+        val previewLog = crashLog?.let { log ->
+            if (log.length <= MAX_NOTIFICATION_LOG_CHARS) {
+                log
+            } else {
+                log.take(MAX_NOTIFICATION_LOG_CHARS) + "\n…"
+            }
+        }
+
         context.doIfNotificationsAllowed {
             notify(
                 CRASH_TAG_PREFIX + appCrash.packageName,
@@ -51,9 +62,9 @@ constructor(
                             Strings.app_crashed,
                             appCrash.appName ?: appCrash.packageName,
                         ),
-                    ).setContentText(crashLog)
+                    ).setContentText(previewLog)
                     .setSmallIcon(Icons.ic_bug_notification)
-                    .setStyle(NotificationCompat.BigTextStyle().bigText(crashLog))
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(previewLog))
                     .apply {
                         if (appCrash.id != 0L) {
                             setContentIntent(
@@ -65,24 +76,32 @@ constructor(
                             )
                         }
                     }.setAutoCancel(true)
-                    .addAction(
-                        Icons.ic_copy,
-                        context.getString(android.R.string.copy),
-                        context.makeBroadcastPendingIntent<CopyReceiver>(
-                            // A shared request code made every crash notification reuse the
-                            // same PendingIntent: FLAG_UPDATE_CURRENT then replaced the
-                            // extras, so Copy on an older notification copied another
-                            // crash's log and even cancelled the wrong notification
-                            id = COPY_CRASH_INTENT_ID + appCrash.notificationId,
-                            extras =
-                            bundleOf(
-                                Intent.EXTRA_TEXT to crashLog,
-                                CopyReceiver.EXTRA_PACKAGE_NAME to appCrash.packageName,
-                                CopyReceiver.EXTRA_NOTIFICATION_ID to
-                                    appCrash.notificationId,
-                            ),
-                        ),
-                    ).build(),
+                    .apply {
+                        // The copy action carries the log in its extras, so it is only
+                        // offered when the text fits: a failed PendingIntent build would
+                        // kill the whole notification again (the details screen can still
+                        // copy the full log)
+                        if (crashLog == null || crashLog.length <= MAX_COPYABLE_LOG_CHARS) {
+                            addAction(
+                                Icons.ic_copy,
+                                context.getString(android.R.string.copy),
+                                context.makeBroadcastPendingIntent<CopyReceiver>(
+                                    // A shared request code made every crash notification
+                                    // reuse the same PendingIntent: FLAG_UPDATE_CURRENT then
+                                    // replaced the extras, so Copy on an older notification
+                                    // copied another crash's log and cancelled the wrong one
+                                    id = COPY_CRASH_INTENT_ID + appCrash.notificationId,
+                                    extras =
+                                    bundleOf(
+                                        Intent.EXTRA_TEXT to crashLog,
+                                        CopyReceiver.EXTRA_PACKAGE_NAME to appCrash.packageName,
+                                        CopyReceiver.EXTRA_NOTIFICATION_ID to
+                                            appCrash.notificationId,
+                                    ),
+                                ),
+                            )
+                        }
+                    }.build(),
             )
         }
     }
@@ -155,5 +174,8 @@ constructor(
         private const val CRASHES_CHANNEL_ID = "crashes"
 
         private const val CRASH_TAG_PREFIX = "crash:"
+
+        private const val MAX_NOTIFICATION_LOG_CHARS = 2000
+        private const val MAX_COPYABLE_LOG_CHARS = 100_000
     }
 }
