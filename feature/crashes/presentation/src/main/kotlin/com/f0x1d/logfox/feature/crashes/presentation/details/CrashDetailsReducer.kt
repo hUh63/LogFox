@@ -248,7 +248,7 @@ internal class CrashDetailsReducer @Inject constructor() : Reducer<CrashDetailsS
             val crashLog = state.crashLog
             if (crashLog != null) {
                 state.withSideEffects(
-                    CrashDetailsSideEffect.ShareCrashLog(crashLog),
+                    CrashDetailsSideEffect.ShareCrashLog(crashLog, state.crash?.logFile),
                 )
             } else {
                 state.noSideEffects()

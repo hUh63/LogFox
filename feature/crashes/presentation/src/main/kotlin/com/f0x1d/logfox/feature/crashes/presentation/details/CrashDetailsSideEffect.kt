@@ -48,7 +48,12 @@ internal sealed interface CrashDetailsSideEffect {
     data object ConfirmBlacklist : CrashDetailsSideEffect, ReliableSideEffect
     data object ConfirmDelete : CrashDetailsSideEffect, ReliableSideEffect
     data class CopyText(val text: String) : CrashDetailsSideEffect, ReliableSideEffect
-    data class ShareCrashLog(val text: String) : CrashDetailsSideEffect, ReliableSideEffect
+    data class ShareCrashLog(
+        val text: String,
+        // Shared as a file when available: EXTRA_TEXT overflows the binder transaction for
+        // any real log, and the share sheet then only showed "log too big"
+        val file: File? = null,
+    ) : CrashDetailsSideEffect, ReliableSideEffect
     data object Close : CrashDetailsSideEffect, ReliableSideEffect
     data class LaunchFileExportPicker(val filename: String) : CrashDetailsSideEffect, ReliableSideEffect
     data class LaunchZipExportPicker(val filename: String) : CrashDetailsSideEffect, ReliableSideEffect

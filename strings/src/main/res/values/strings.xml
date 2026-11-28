@@ -7,6 +7,7 @@
     <string name="text_copied">Text copied</string>
     <string name="cannot_open_file">Cannot open file</string>
     <string name="file_saved">Saved</string>
+    <string name="copied_log_trimmed">The log is too long for the clipboard, its beginning was copied. Use Export for the full log.</string>
     <string name="notification_channels">Notification channels</string>
     <string name="notification_channels_note">Android keeps a permanent record of channels an app deleted, and no app can clear it. Review the channels here, or clear LogFox storage in the app info screen to reset them (this also resets all app settings).</string>
     <string name="crash_deleted">This crash no longer exists</string>

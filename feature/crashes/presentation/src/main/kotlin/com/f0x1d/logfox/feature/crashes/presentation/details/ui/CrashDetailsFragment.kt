@@ -20,6 +20,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import com.f0x1d.logfox.core.compat.notificationsChannelsAvailable
+import com.f0x1d.logfox.core.context.shareFileIntent
 import com.f0x1d.logfox.core.context.shareIntent
 import com.f0x1d.logfox.core.context.viewTextFile
 import com.f0x1d.logfox.core.copy.copyText
@@ -313,7 +314,15 @@ internal class CrashDetailsFragment :
             }
 
             is CrashDetailsSideEffect.ShareCrashLog -> {
-                requireContext().shareIntent(sideEffect.text)
+                val file = sideEffect.file
+
+                if (file != null && file.exists()) {
+                    // A file keeps the share working for multi-megabyte logs; the text
+                    // variant is only a fallback for crashes without a stored log file
+                    requireContext().shareFileIntent(file)
+                } else {
+                    requireContext().shareIntent(sideEffect.text)
+                }
             }
 
             is CrashDetailsSideEffect.Close -> {
