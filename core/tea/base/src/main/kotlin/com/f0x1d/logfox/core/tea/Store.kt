@@ -74,13 +74,16 @@ class Store<State, Command, SideEffect>(
             if (!persistedRestored) {
                 persistedRestored = true
 
-                val restored = persisted.mapNotNull { item ->
-                    val effect = runCatching { restorePersisted?.invoke(item) }.getOrNull()
+                val restored: List<Pair<PersistedSideEffect, Envelope<SideEffect>>> =
+                    persisted.mapNotNull { item ->
+                        // Items this screen cannot rebuild (older version, removed feature)
+                        // are dropped instead of being kept around until the TTL expires
+                        val effect: SideEffect = runCatching {
+                            restorePersisted?.invoke(item)
+                        }.getOrNull() ?: return@mapNotNull null
 
-                    // Items this screen cannot rebuild (older version, removed feature) are
-                    // dropped instead of being kept around until the TTL expires
-                    if (effect == null) null else item to Envelope(effect, reliable = true)
-                }
+                        item to Envelope(effect, reliable = true)
+                    }
 
                 persisted.clear()
                 restored.forEach { (item, envelope) ->
