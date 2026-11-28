@@ -4,6 +4,7 @@ internal sealed interface PreferencesNotificationsCommand {
     data object CheckPermission : PreferencesNotificationsCommand
     data object OpenLoggingNotificationSettings : PreferencesNotificationsCommand
     data object OpenNotificationsPermissionSettings : PreferencesNotificationsCommand
+    data object OpenNotificationChannels : PreferencesNotificationsCommand
 
     // Commands from effect handler
     data class PermissionChecked(val hasPermission: Boolean) : PreferencesNotificationsCommand

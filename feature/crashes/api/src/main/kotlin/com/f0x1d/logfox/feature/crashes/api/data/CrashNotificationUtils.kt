@@ -35,9 +35,19 @@ private val CURRENT_CRASH_CHANNEL_IDS: Set<String> = buildSet {
  * 3. legacy per-package channels are deleted,
  * 4. every crash channel group is deleted.
  *
- * Android keeps a "deleted channels" counter that only the system and a full data wipe can
- * clear — no app-facing API touches it. Not creating the groups in the first place is
- * therefore the only way to keep that list from growing.
+ * Android keeps a "deleted channels" counter (and the deleted channel records themselves, in
+ * notification_policy.xml) that only the system can clear:
+ *  - NotificationManager.deleteNotificationChannel() only marks the channel deleted
+ *    (PreferencesHelper.deleteNotificationChannelLocked -> setDeleted(true)); the record, its
+ *    name and its settings stay in the policy file, so every delete adds one more entry;
+ *  - removing them for real needs PreferencesHelper.permanentlyDeleteNotificationChannel()
+ *    (@VisibleForTesting, NotificationManagerInternal - system/root only) or
+ *    INotificationManager.clearData() (checkCallerIsSystem, called when the user clears the
+ *    app's storage).
+ * There is therefore no app-facing way to shrink that list: not creating the groups in the
+ * first place and never renaming/rebuilding channels is the only way to keep it from growing.
+ * The settings screen shows the channels plus this explanation, and points at the only
+ * user-reachable reset (clear app storage, which also resets the app's settings).
  */
 fun Context.cleanupLegacyCrashChannels() {
     val manager = NotificationManagerCompat.from(this)

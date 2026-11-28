@@ -38,6 +38,11 @@ internal class PreferencesNotificationsFragment :
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         addPreferencesFromResource(R.xml.settings_notifications)
 
+        findPreference<Preference>("pref_notification_channels")?.setOnPreferenceClickListener {
+            send(PreferencesNotificationsCommand.OpenNotificationChannels)
+            true
+        }
+
         findPreference<Preference>("pref_logging_notification")?.setOnPreferenceClickListener {
             send(PreferencesNotificationsCommand.OpenLoggingNotificationSettings)
             true

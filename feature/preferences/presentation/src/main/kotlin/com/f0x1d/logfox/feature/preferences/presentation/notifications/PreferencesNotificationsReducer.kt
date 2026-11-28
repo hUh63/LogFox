@@ -29,5 +29,13 @@ internal class PreferencesNotificationsReducer @Inject constructor() : Reducer<P
                 PreferencesNotificationsSideEffect.OpenAppNotificationSettings,
             )
         }
+
+        // Same destination as the permission item, a separate command so the two entry points
+        // stay readable
+        is PreferencesNotificationsCommand.OpenNotificationChannels -> {
+            state.withSideEffects(
+                PreferencesNotificationsSideEffect.OpenAppNotificationSettings,
+            )
+        }
     }
 }

@@ -33,6 +33,8 @@ internal class CrashExportRepositoryImpl @Inject constructor(
         val appCrash = crashesRepository.getById(crashId)
             ?: error("Crash $crashId no longer exists")
 
+        val dumpFile = appCrash.logDumpFile?.takeIf { it.exists() }
+
         val content = buildString {
             if (serviceSettingsRepository.includeDeviceInfoInArchives().value) {
                 appendLine(deviceData)
@@ -47,22 +49,24 @@ internal class CrashExportRepositoryImpl @Inject constructor(
             // The crash log holds the exception lines only; the dump holds the whole logcat
             // buffer around the crash. Exporting "the crash to a file" without it gave the
             // user a file that could not explain why the app died.
-            appCrash.logDumpFile?.let { dump ->
-                val dumpContent = formatLogFileContent(dump)
-
-                if (dumpContent.isNotBlank()) {
-                    if (isNotEmpty()) appendLine()
-                    appendLine()
-                    appendLine("========== FULL LOG DUMP (logcat buffer around the crash) ==========")
-                    appendLine()
-                    append(dumpContent)
-                }
+            if (dumpFile != null) {
+                appendLine()
+                appendLine()
+                appendLine("========== FULL LOG DUMP (logcat buffer around the crash) ==========")
+                appendLine()
             }
         }
 
-        if (content.isBlank()) error("Nothing to export for crash $crashId")
+        if (content.isBlank() && dumpFile == null) error("Nothing to export for crash $crashId")
 
-        exportRepository.writeContentToUri(uri, content)
+        if (dumpFile == null) {
+            exportRepository.writeContentToUri(uri, content)
+        } else {
+            // Streamed in: the dump can be up to 16M characters, and formatting it into one
+            // String (then encoding it) held several copies of it at once - an OOM on low end
+            // devices, right when the user needed the file
+            exportRepository.writeContentAndFileToUri(uri, content, dumpFile)
+        }
     }
 
     override suspend fun exportToZip(crashId: Long, uri: Uri) = withContext(ioDispatcher) {
@@ -106,9 +110,11 @@ internal class CrashExportRepositoryImpl @Inject constructor(
             }
 
             appCrash.logDumpFile?.let { file ->
+                // Copied as-is: formatting a 50k line dump allocated far more than the file
+                // itself. The dump is raw logcat, it already carries level/time/pid
                 putZipEntry(
-                    name = "dump_${suffix}.$logExtension",
-                    content = formatLogFileContent(file).encodeToByteArray(),
+                    name = "dump_${suffix}.log",
+                    file = file,
                 )
             }
         }

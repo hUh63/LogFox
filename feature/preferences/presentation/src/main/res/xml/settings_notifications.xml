@@ -32,6 +32,13 @@
             android:selectable="false"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:title="@string/notification_channels"
+            android:summary="@string/notification_channels_note"
+            android:key="pref_notification_channels"
+            android:selectable="true"
+            app:iconSpaceReserved="false" />
+
         <SwitchPreferenceCompat
             android:title="@string/use_separate_channels_for_crashes"
             android:key="pref_notifications_use_separate_channels"
