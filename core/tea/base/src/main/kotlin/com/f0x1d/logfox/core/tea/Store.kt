@@ -260,6 +260,8 @@ class Store<State, Command, SideEffect>(
     private companion object {
         const val MAX_PENDING_EFFECTS = 128
         const val MAX_PERSISTED_EFFECTS = 8
-        const val MAX_PERSISTED_AGE_MS = 7L * 24 * 60 * 60 * 1000
+        // A day, not a week: the restored effect is a report about something the user did
+        // before leaving, and popping yesterday's "export failed" out of nowhere is noise
+        const val MAX_PERSISTED_AGE_MS = 24L * 60 * 60 * 1000
     }
 }
